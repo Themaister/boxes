@@ -55,8 +55,8 @@ class LibretroGLApplication
       std::string libretro_dir;
       inline std::string path(const std::string& p)
       {
-         fprintf(stderr, "Loading assets too early!\n");
-         abort();
+         if (libretro_dir.empty())
+            throw std::logic_error("Loading assets too early!\n");
 
          return Path::join(libretro_dir, p);
       }
@@ -87,6 +87,17 @@ class ContextManager
    private:
       ContextManager() {}
       std::vector<ContextListener*> listeners;
+};
+
+// Non-copyable, non-movable stubs.
+class ContextResource
+{
+   public:
+      ContextResource() {}
+      ContextResource(const ContextResource&) = delete;
+      ContextResource& operator=(const ContextResource&) = delete;
+      ContextResource(ContextResource&&) = delete;
+      ContextResource& operator=(ContextResource&&) = delete;
 };
 
 #endif

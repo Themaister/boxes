@@ -218,9 +218,8 @@ bool retro_load_game(const struct retro_game_info *info)
    app->set_dir(Path::basedir(libretro));
    fprintf(stderr, "Loaded from dir: %s.\n", libretro);
 
-   update_variables();
-
    app->load();
+   update_variables();
 
    return true;
 }

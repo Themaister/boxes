@@ -52,7 +52,7 @@ LIBS += $(GL_LIB)
 
 all: $(TARGET)
 
-HEADERS := $(wildcard *.hpp) $(wildcard *.h)
+HEADERS := $(wildcard *.hpp) $(wildcard *.h) $(wildcard */*.hpp) $(wildcard */*.h)
 
 $(TARGET): $(OBJECTS)
 	$(CXX) $(fpic) $(SHARED) $(INCLUDES) -o $@ $(OBJECTS) $(LIBS) -lm

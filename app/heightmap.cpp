@@ -1,6 +1,9 @@
 #include "../global.hpp"
 #include "buffer.hpp"
+#include "shader.hpp"
+#include "vertex_array.hpp"
 #include <memory>
+#include <cstdint>
 
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -80,8 +83,8 @@ class HeightmapApp : public LibretroGLApplication
 
       void update_input(const InputState::Analog& analog)
       {
-         player_view_deg_y += analog.rx * -0.08f;
-         player_view_deg_x += analog.ry * -0.05f;
+         player_view_deg_y += analog.rx * -2.0f;
+         player_view_deg_x += analog.ry * -1.5f;
          player_view_deg_x = clamp(player_view_deg_x, -80.0f, 80.0f);
 
          mat4 rotate_x = rotate(mat4(1.0), player_view_deg_x, vec3(1, 0, 0));
@@ -91,8 +94,8 @@ class HeightmapApp : public LibretroGLApplication
          player_look_dir = vec3(rotate_y * rotate_x * vec4(0, 0, -1, 1));
          vec3 right_walk_dir = vec3(rotate_y_right * vec4(0, 0, -1, 1));
 
-         vec3 velocity = player_look_dir * vec3(analog.y * -0.02f) +
-            right_walk_dir * vec3(analog.x * 0.02f);
+         vec3 velocity = player_look_dir * vec3(analog.y * -0.25f) +
+            right_walk_dir * vec3(analog.x * 0.25f);
 
          player_pos += velocity;
          update_global_data();
@@ -100,15 +103,30 @@ class HeightmapApp : public LibretroGLApplication
 
       void run(const InputState& input, GLuint) override
       {
-         update_input(input.analog);
+         auto analog = input.analog;
+         if (fabsf(analog.x) < 0.3f)
+            analog.x = 0.0f;
+         if (fabsf(analog.y) < 0.3f)
+            analog.y = 0.0f;
+         if (fabsf(analog.rx) < 0.3f)
+            analog.rx = 0.0f;
+         if (fabsf(analog.ry) < 0.3f)
+            analog.ry = 0.0f;
+         update_input(analog);
 
          glViewport(0, 0, width, height);
          glClearColor(0.3f, 0.3f, 0.3f, 1.0f);
          glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
          global_buffer.bind();
+         shader.use();
+         array.bind();
 
+         glDrawArrays(GL_TRIANGLES, 0, 3);
+
+         array.unbind();
          global_buffer.unbind();
+         Shader::unbind();
       }
 
       void get_context_version(unsigned& major, unsigned& minor) const override
@@ -125,6 +143,21 @@ class HeightmapApp : public LibretroGLApplication
          player_look_dir = vec3(0, 0, -1);
          player_view_deg_x = 0.0f;
          player_view_deg_y = 0.0f;
+
+         shader.init(path("test.vs"), path("test.fs"));
+
+         vector<VertexArray::Array> arrays = {
+            { Shader::VertexLocation, 3, GL_BYTE, GL_FALSE, 0, 0 },
+         };
+         array.setup(arrays, &vertex, nullptr);
+
+         int8_t buffer[] = {
+            -1, -1, -5,
+             1, -1, -5,
+             0,  1, -5,
+         };
+
+         vertex.init(GL_ARRAY_BUFFER, sizeof(buffer), Buffer::None, buffer);
       }
 
    private:
@@ -141,13 +174,17 @@ class HeightmapApp : public LibretroGLApplication
          mat4 vp;
          mat4 view;
          mat4 proj;
+         mat4 inv_vp;
          mat4 inv_view;
          mat4 inv_proj;
-         mat4 inv_vp;
       };
 
       GlobalTransforms global;
       Buffer global_buffer;
+      Shader shader;
+
+      Buffer vertex;
+      VertexArray array;
 };
 
 unique_ptr<LibretroGLApplication> libretro_gl_application_create()
