@@ -143,6 +143,8 @@ void retro_run(void)
    state.pressed.b     = input_state_cb(0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_B);
    state.pressed.x     = input_state_cb(0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_X);
    state.pressed.y     = input_state_cb(0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_Y);
+   state.pressed.l     = input_state_cb(0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_L);
+   state.pressed.r     = input_state_cb(0, RETRO_DEVICE_JOYPAD, 0, RETRO_DEVICE_ID_JOYPAD_R);
 
    state.triggered.left  = state.pressed.left && !last_input_state.pressed.left;
    state.triggered.right = state.pressed.right && !last_input_state.pressed.right;
@@ -152,6 +154,8 @@ void retro_run(void)
    state.triggered.b     = state.pressed.b && !last_input_state.pressed.b;
    state.triggered.x     = state.pressed.x && !last_input_state.pressed.x;
    state.triggered.y     = state.pressed.y && !last_input_state.pressed.y;
+   state.triggered.l     = state.pressed.l && !last_input_state.pressed.l;
+   state.triggered.r     = state.pressed.r && !last_input_state.pressed.r;
 
    last_input_state = state;
 

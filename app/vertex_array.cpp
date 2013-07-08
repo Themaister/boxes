@@ -36,9 +36,13 @@ void VertexArray::unbind()
 
 void VertexArray::setup(const std::vector<Array>& arrays, Buffer* array_buffer, Buffer* elem_buffer)
 {
+   unregister_dependency(this->array_buffer);
+   unregister_dependency(this->elem_buffer);
    this->arrays = arrays;
    this->array_buffer = array_buffer;
    this->elem_buffer = elem_buffer;
+   register_dependency(this->array_buffer);
+   register_dependency(this->elem_buffer);
 
    if (alive && !arrays.empty())
       setup();

@@ -31,6 +31,7 @@ class LibretroGLApplication
          {
             bool left, right, up, down;
             bool a, b, x, y;
+            bool l, r;
          };
 
          Buttons pressed;
@@ -72,6 +73,13 @@ class ContextListener
 
       virtual void reset() = 0;
       virtual void destroyed() = 0;
+
+      bool operator==(const ContextListener& other) const { return this == &other; }
+      bool operator!=(const ContextListener& other) const { return this != &other; }
+
+   protected:
+      void register_dependency(ContextListener *listener);
+      void unregister_dependency(ContextListener *listener);
 };
 
 class ContextManager
@@ -84,9 +92,33 @@ class ContextManager
       void notify_reset();
       void notify_destroyed();
 
+      void register_dependency(ContextListener *master, ContextListener *slave);
+      void unregister_dependency(ContextListener *master, ContextListener *slave);
+
    private:
       ContextManager() {}
-      std::vector<ContextListener*> listeners;
+
+      struct ListenerState
+      {
+         ContextListener *listener;
+         bool signaled = false;
+         std::vector<ListenerState*> dependencies;
+         std::vector<ListenerState*> dependers;
+         uint64_t id = 0;
+
+         void reset_chain();
+         void destroy_chain();
+
+         bool operator==(const ListenerState& other) const { return id == other.id; }
+         bool operator!=(const ListenerState& other) const { return id != other.id; }
+         bool operator==(const ContextListener& other) const { return listener == &other; }
+         bool operator!=(const ContextListener& other) const { return listener != &other; }
+      };
+
+      std::vector<ListenerState> listeners;
+      bool alive = false;
+
+      uint64_t context_id = 0;
 };
 
 // Non-copyable, non-movable stubs.

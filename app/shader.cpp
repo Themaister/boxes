@@ -76,13 +76,23 @@ void Shader::compile_shaders()
    glDeleteShader(vert);
    glDeleteShader(frag);
 
-   GLuint block = glGetUniformBlockIndex(prog, "GlobalVertexData");
-   if (block != GL_INVALID_INDEX)
-      glUniformBlockBinding(prog, block, 0);
+   static const vector<pair<const char*, unsigned>> uniform_mapping = {
+      { "GlobalVertexData", GlobalVertexData },
+      { "GlobalFragmentData", GlobalFragmentData },
+      { "VertexSlot1", VertexSlot1 },
+      { "VertexSlot2", VertexSlot2 },
+      { "VertexSlot3", VertexSlot3 },
+      { "FragmentSlot1", FragmentSlot1 },
+      { "FragmentSlot2", FragmentSlot2 },
+      { "FragmentSlot3", FragmentSlot3 },
+   };
 
-   block = glGetUniformBlockIndex(prog, "GlobalFragmentData");
-   if (block != GL_INVALID_INDEX)
-      glUniformBlockBinding(prog, block, 1);
+   for (auto& map : uniform_mapping)
+   {
+      GLuint block = glGetUniformBlockIndex(prog, map.first);
+      if (block != GL_INVALID_INDEX)
+         glUniformBlockBinding(prog, block, map.second);
+   }
 }
 
 void Shader::init(const std::string& path_vs, const std::string& path_fs)
@@ -101,6 +111,11 @@ void Shader::init(const std::string& path_vs, const std::string& path_fs)
 void Shader::use()
 {
    glUseProgram(prog);
+}
+
+void Shader::unbind()
+{
+   glUseProgram(0);
 }
 
 void Shader::reset()

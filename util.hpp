@@ -9,6 +9,25 @@
 #include <sstream>
 #include <stdexcept>
 #include <utility>
+#include <algorithm>
+
+namespace Template
+{
+   template<typename T, typename U>
+   inline auto find_or_throw(T& t, const U& u) -> decltype(*std::begin(t))
+   {
+      auto itr = std::find(std::begin(t), std::end(t), u);
+      if (itr == std::end(t))
+         throw std::runtime_error("Couldn't find element in iterator.");
+      return *itr;
+   }
+
+   template<typename T, typename U>
+   inline void erase_all(T& t, const U& u)
+   {
+      t.erase(std::remove_if(std::begin(t), std::end(t), [&u](const U& other) { return other == u; }), std::end(t));
+   }
+}
 
 namespace Path
 {

@@ -12,6 +12,74 @@
 using namespace std;
 using namespace glm;
 
+class HeightGrid
+{
+   public:
+      void init(unsigned size)
+      {
+         init_vertices(size);
+         init_indices(size);
+         vector<VertexArray::Array> arrays = {
+            { Shader::VertexLocation, 2, GL_SHORT, GL_FALSE, 0, 0 },
+         };
+         array.setup(arrays, &vertex, &elems);
+      }
+
+      void render()
+      {
+         array.bind();
+         glDrawElements(GL_TRIANGLE_STRIP, elements, GL_UNSIGNED_SHORT, nullptr);
+         array.unbind();
+      }
+
+   private:
+      VertexArray array;
+      Buffer vertex;
+      Buffer elems;
+      unsigned elements = 0;
+
+      void init_vertices(unsigned size)
+      {
+         vector<GLshort> vertices;
+         vertices.reserve(2 * size * size);
+         for (unsigned y = 0; y < size; y++)
+         {
+            for (unsigned x = 0; x < size; x++)
+            {
+               vertices.push_back(x);
+               vertices.push_back(-int(size - 1 - y));
+            }
+         }
+
+         vertex.init(GL_ARRAY_BUFFER, 2 * size * size * sizeof(GLshort), Buffer::None, vertices.data());
+      }
+
+      void init_indices(unsigned size)
+      {
+         elements = (size - 1) * (2 * size + 1);
+
+         vector<GLushort> indices;
+         indices.reserve(elements);
+
+         int pos = 0;
+         for (unsigned y = 0; y < size - 1; y++)
+         {
+            int dir_odd = -int(size) + ((y & 1) ? -1 : 1);
+            int dir_even = size;
+
+            for (unsigned x = 0; x < 2 * size - 1; x++)
+            {
+               indices.push_back(pos);
+               pos += (x & 1) ? dir_odd : dir_even;
+            }
+            indices.push_back(pos);
+            indices.push_back(pos);
+         }
+
+         elems.init(GL_ELEMENT_ARRAY_BUFFER, elements * sizeof(GLushort), Buffer::None, indices.data());
+      }
+};
+
 class HeightmapApp : public LibretroGLApplication
 {
    public:
@@ -81,7 +149,7 @@ class HeightmapApp : public LibretroGLApplication
          update_global_data();
       }
 
-      void update_input(const InputState::Analog& analog)
+      void update_input(const InputState::Analog& analog, const InputState::Buttons& buttons)
       {
          player_view_deg_y += analog.rx * -2.0f;
          player_view_deg_x += analog.ry * -1.5f;
@@ -94,10 +162,12 @@ class HeightmapApp : public LibretroGLApplication
          player_look_dir = vec3(rotate_y * rotate_x * vec4(0, 0, -1, 1));
          vec3 right_walk_dir = vec3(rotate_y_right * vec4(0, 0, -1, 1));
 
+
+         vec3 mod_speed = buttons.r ? vec3(2.0f) : vec3(1.0f);
          vec3 velocity = player_look_dir * vec3(analog.y * -0.25f) +
             right_walk_dir * vec3(analog.x * 0.25f);
 
-         player_pos += velocity;
+         player_pos += velocity * mod_speed;
          update_global_data();
       }
 
@@ -112,21 +182,24 @@ class HeightmapApp : public LibretroGLApplication
             analog.rx = 0.0f;
          if (fabsf(analog.ry) < 0.3f)
             analog.ry = 0.0f;
-         update_input(analog);
+         update_input(analog, input.pressed);
 
          glViewport(0, 0, width, height);
          glClearColor(0.3f, 0.3f, 0.3f, 1.0f);
          glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
+         glEnable(GL_CULL_FACE);
+         glEnable(GL_DEPTH_TEST);
+
          global_buffer.bind();
+         global_frag_buffer.bind();
          shader.use();
-         array.bind();
 
-         glDrawArrays(GL_TRIANGLES, 0, 3);
+         grid.render();
 
-         array.unbind();
          global_buffer.unbind();
-         Shader::unbind();
+         global_frag_buffer.unbind();
+         shader.unbind();
       }
 
       void get_context_version(unsigned& major, unsigned& minor) const override
@@ -139,25 +212,16 @@ class HeightmapApp : public LibretroGLApplication
       {
          global_buffer.init(GL_UNIFORM_BUFFER, sizeof(global), Buffer::WriteOnly);
 
+         vec4 global_color(0.8f, 0.6f, 0.2f, 1.0f);
+         global_frag_buffer.init(GL_UNIFORM_BUFFER, sizeof(global_color), Buffer::None, value_ptr(global_color), 1);
+
          player_pos = vec3(0.0f);
          player_look_dir = vec3(0, 0, -1);
          player_view_deg_x = 0.0f;
          player_view_deg_y = 0.0f;
 
          shader.init(path("test.vs"), path("test.fs"));
-
-         vector<VertexArray::Array> arrays = {
-            { Shader::VertexLocation, 3, GL_BYTE, GL_FALSE, 0, 0 },
-         };
-         array.setup(arrays, &vertex, nullptr);
-
-         int8_t buffer[] = {
-            -1, -1, -5,
-             1, -1, -5,
-             0,  1, -5,
-         };
-
-         vertex.init(GL_ARRAY_BUFFER, sizeof(buffer), Buffer::None, buffer);
+         grid.init(128);
       }
 
    private:
@@ -181,10 +245,10 @@ class HeightmapApp : public LibretroGLApplication
 
       GlobalTransforms global;
       Buffer global_buffer;
+      Buffer global_frag_buffer;
       Shader shader;
 
-      Buffer vertex;
-      VertexArray array;
+      HeightGrid grid;
 };
 
 unique_ptr<LibretroGLApplication> libretro_gl_application_create()

@@ -13,10 +13,22 @@ class Shader : public ContextListener, public ContextResource
          NormalLocation = 2
       };
 
+      enum UniformLocation
+      {
+         GlobalVertexData = 0,
+         GlobalFragmentData = 1,
+         VertexSlot1 = 2,
+         VertexSlot2 = 3,
+         VertexSlot3 = 4,
+         FragmentSlot1 = 5,
+         FragmentSlot2 = 6,
+         FragmentSlot3 = 7,
+      };
+
       void init(const std::string& path_vs, const std::string& path_fs);
 
       void use();
-      static void unbind() { glUseProgram(0); }
+      void unbind();
 
       void reset() override;
       void destroyed() override;
