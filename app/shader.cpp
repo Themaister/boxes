@@ -3,8 +3,9 @@
 #include <vector>
 
 using namespace std;
+using namespace Log;
 
-void Shader::log_shader(GLuint obj, const std::string& source)
+void Shader::log_shader(GLuint obj, const vector<const GLchar*>& source)
 {
    GLint len = 0;
    glGetShaderiv(obj, GL_INFO_LOG_LENGTH, &len);
@@ -16,7 +17,11 @@ void Shader::log_shader(GLuint obj, const std::string& source)
    GLsizei dummy;
    glGetShaderInfoLog(obj, len, &dummy, buf.data());
 
-   fprintf(stderr, "Shader error:\n%s\n=======\n%s\n=============\n", reinterpret_cast<const char*>(buf.data()), source.c_str());
+   log("Shader error:\n%s", buf.data());
+   log("=============");
+   for (auto str : source)
+      log("%s", str);
+   log("=============");
 }
 
 void Shader::log_program(GLuint obj)
@@ -36,32 +41,47 @@ void Shader::log_program(GLuint obj)
    GLsizei dummy;
    glGetProgramInfoLog(obj, len, &dummy, buf.data());
 
-   fprintf(stderr, "Program error:\n%s\n", reinterpret_cast<const char*>(buf.data()));
+   log("Program error:\n%s", buf.data());
 }
 
-void Shader::compile_shader(GLuint obj, const std::string& source)
+void Shader::compile_shader(GLuint obj, const string& source,
+      const vector<string>& defines)
 {
-   const GLchar *gl_source[2] = {
+   vector<const GLchar*> gl_source = {
       "#version 140\nlayout(std140) uniform;\n",
-      source.c_str(),
    };
+   for (auto& define : defines)
+      gl_source.push_back(define.c_str());
+   gl_source.push_back(source.c_str());
 
-   glShaderSource(obj, 2, gl_source, nullptr);
+   glShaderSource(obj, gl_source.size(), gl_source.data(), nullptr);
    glCompileShader(obj);
 
    GLint status = 0;
    glGetShaderiv(obj, GL_COMPILE_STATUS, &status);
    if (!status)
-      log_shader(obj, source);
+      log_shader(obj, gl_source);
 }
 
-void Shader::compile_shaders()
+vector<string> Shader::current_defines() const
 {
+   vector<string> ret;
+   for (auto& define : defines)
+      ret.push_back(String::cat("#define ",
+               define.name, " ", to_string(define.value), "\n"));
+   return ret;
+}
+
+GLuint Shader::compile_shaders()
+{
+   GLuint prog = glCreateProgram();
    GLuint vert = glCreateShader(GL_VERTEX_SHADER);
    GLuint frag = glCreateShader(GL_FRAGMENT_SHADER);
 
-   compile_shader(vert, source_vs);
-   compile_shader(frag, source_fs);
+   auto defines = current_defines();
+
+   compile_shader(vert, source_vs, defines);
+   compile_shader(frag, source_fs, defines);
 
    glAttachShader(prog, vert);
    glAttachShader(prog, frag);
@@ -93,44 +113,78 @@ void Shader::compile_shaders()
       if (block != GL_INVALID_INDEX)
          glUniformBlockBinding(prog, block, map.second);
    }
+
+   return prog;
 }
 
-void Shader::init(const std::string& path_vs, const std::string& path_fs)
+void Shader::reserve_define(const string& name, unsigned define_bits)
+{
+   defines.push_back({total_bits, define_bits, 0, name});
+   total_bits += define_bits;
+}
+
+unsigned Shader::compute_permutation() const
+{
+   unsigned permute = 0;
+   for (auto& define : defines)
+      permute |= define.value << define.start_bit;
+   return permute;
+}
+
+void Shader::set_define(const string& name, unsigned value)
+{
+   auto itr = find_if(begin(defines),
+         end(defines), [&name](const Define& def) {
+            return def.name == name;
+         });
+
+   if (itr != end(defines))
+   {
+      itr->value = value & ((1 << itr->bits) - 1);
+      current_permutation = compute_permutation();
+      if (active)
+         use();
+   }
+}
+
+void Shader::init(const string& path_vs, const string& path_fs)
 {
    source_vs = File::read_string(path_vs);
    source_fs = File::read_string(path_fs);
+
    if (alive)
-   {
-      if (prog)
-         glDeleteProgram(prog);
-      prog = glCreateProgram();
-      compile_shaders();
-   }
+      for (auto& prog : progs)
+         glDeleteProgram(prog.second);
+
+   progs.clear();
 }
 
 void Shader::use()
 {
+   GLuint prog = progs[current_permutation];
+   if (!prog)
+      progs[current_permutation] = prog = compile_shaders();
+
    glUseProgram(prog);
+   active = true;
 }
 
 void Shader::unbind()
 {
    glUseProgram(0);
+   active = false;
 }
 
 void Shader::reset()
 {
    alive = true;
-   prog = glCreateProgram();
-   if (!source_vs.empty() && !source_fs.empty())
-      compile_shaders();
 }
 
 void Shader::destroyed()
 {
    alive = false;
-   if (prog)
-      glDeleteProgram(prog);
-   prog = 0;
+   for (auto& prog : progs)
+      glDeleteProgram(prog.second);
+   progs.clear();
 }
 

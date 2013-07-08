@@ -4,6 +4,7 @@
 
 #include <cstring>
 using namespace std;
+using namespace Log;
 
 static struct retro_hw_render_callback hw_render;
 static string libretro_dir;
@@ -98,7 +99,7 @@ static void update_variables()
 
    width = stoi(list[0]);
    height = stoi(list[1]);
-   fprintf(stderr, "Internal resolution: %u x %u\n", width, height);
+   log("Internal resolution: %u x %u.", width, height);
 
    app->viewport_changed({width, height});
 }
@@ -197,7 +198,7 @@ bool retro_load_game(const struct retro_game_info *info)
    enum retro_pixel_format fmt = RETRO_PIXEL_FORMAT_XRGB8888;
    if (!environ_cb(RETRO_ENVIRONMENT_SET_PIXEL_FORMAT, &fmt))
    {
-      fprintf(stderr, "XRGB8888 is not supported.");
+      log("XRGB8888 is not supported.");
       return false;
    }
 
@@ -215,12 +216,12 @@ bool retro_load_game(const struct retro_game_info *info)
    const char *libretro = nullptr;
    if (!environ_cb(RETRO_ENVIRONMENT_GET_LIBRETRO_PATH, &libretro) || !libretro)
    {
-      fprintf(stderr, "Can't determine libretro path.\n");
+      log("Can't determine libretro path.");
       return false;
    }
 
    app->set_dir(Path::basedir(libretro));
-   fprintf(stderr, "Loaded from dir: %s.\n", libretro);
+   log("Loaded from dir: %s.", libretro);
 
    app->load();
    update_variables();

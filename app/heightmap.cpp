@@ -184,6 +184,12 @@ class HeightmapApp : public LibretroGLApplication
             analog.ry = 0.0f;
          update_input(analog, input.pressed);
 
+         if (input.triggered.a)
+         {
+            foo_define ^= 1;
+            shader.set_define("FOO", foo_define);
+         }
+
          glViewport(0, 0, width, height);
          glClearColor(0.3f, 0.3f, 0.3f, 1.0f);
          glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
@@ -221,6 +227,7 @@ class HeightmapApp : public LibretroGLApplication
          player_view_deg_y = 0.0f;
 
          shader.init(path("test.vs"), path("test.fs"));
+         shader.reserve_define("FOO", 1);
          grid.init(128);
       }
 
@@ -247,6 +254,7 @@ class HeightmapApp : public LibretroGLApplication
       Buffer global_buffer;
       Buffer global_frag_buffer;
       Shader shader;
+      unsigned foo_define = 0;
 
       HeightGrid grid;
 };

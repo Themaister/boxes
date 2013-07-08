@@ -2,6 +2,8 @@
 #define SHADER_HPP__
 
 #include "../global.hpp"
+#include <vector>
+#include <map>
 
 class Shader : public ContextListener, public ContextResource
 {
@@ -33,15 +35,36 @@ class Shader : public ContextListener, public ContextResource
       void reset() override;
       void destroyed() override;
 
+      void reserve_define(const std::string& name, unsigned bits);
+      void set_define(const std::string& name, unsigned value);
+
    private:
-      GLuint prog = 0;
+      std::map<unsigned, GLuint> progs;
+      unsigned current_permutation = 0;
+
+      unsigned total_bits = 0;
+      struct Define
+      {
+         unsigned start_bit;
+         unsigned bits;
+         unsigned value;
+         std::string name;
+      };
+      std::vector<Define> defines;
+
       std::string source_vs, source_fs;
       bool alive = false;
 
-      void compile_shaders();
-      void compile_shader(GLuint obj, const std::string& source);
-      void log_shader(GLuint obj, const std::string& source);
+      unsigned compile_shaders();
+      void compile_shader(GLuint obj, const std::string& source,
+            const std::vector<std::string>& defines);
+      void log_shader(GLuint obj, const std::vector<const GLchar*>& source);
       void log_program(GLuint obj);
+
+      std::vector<std::string> current_defines() const;
+      unsigned compute_permutation() const;
+
+      bool active = false;
 };
 
 #endif

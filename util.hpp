@@ -10,6 +10,8 @@
 #include <stdexcept>
 #include <utility>
 #include <algorithm>
+#include <cstdarg>
+#include <cstring>
 
 namespace Template
 {
@@ -26,6 +28,19 @@ namespace Template
    inline void erase_all(T& t, const U& u)
    {
       t.erase(std::remove_if(std::begin(t), std::end(t), [&u](const U& other) { return other == u; }), std::end(t));
+   }
+}
+
+namespace Log
+{
+   inline void log(const char *fmt, ...)
+   {
+      char message[4096];
+      va_list list;
+      va_start(list, fmt);
+      std::vsnprintf(message, sizeof(message), fmt, list);
+      std::cerr << "[libretro GL]: " << message << std::endl;
+      va_end(list);
    }
 }
 
