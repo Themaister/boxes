@@ -15,6 +15,9 @@ static LibretroGLApplication::InputState last_input_state;
 static unsigned width;
 static unsigned height;
 
+static bool use_frame_time_cb;
+static float frame_delta;
+
 void retro_init(void)
 {
    if (!app)
@@ -104,6 +107,11 @@ static void update_variables()
    app->viewport_changed({width, height});
 }
 
+static void frame_time_cb(retro_usec_t usec)
+{
+   frame_delta = usec / 1000000.0f;
+}
+
 void retro_run(void)
 {
    bool updated = false;
@@ -160,7 +168,10 @@ void retro_run(void)
 
    last_input_state = state;
 
-   app->run(state, fb);
+   if (!use_frame_time_cb)
+      frame_delta = 1.0f / 60.0f;
+
+   app->run(frame_delta, state, fb);
    video_cb(RETRO_HW_FRAME_BUFFER_VALID, width, height, 0);
 }
 
@@ -225,6 +236,9 @@ bool retro_load_game(const struct retro_game_info *info)
 
    app->load();
    update_variables();
+
+   struct retro_frame_time_callback cb = { frame_time_cb, 1000000 / 60 };
+   use_frame_time_cb = environ_cb(RETRO_ENVIRONMENT_SET_FRAME_TIME_CALLBACK, &cb);
 
    return true;
 }

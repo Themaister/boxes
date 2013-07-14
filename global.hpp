@@ -50,7 +50,7 @@ class LibretroGLApplication
       virtual void load() {}
       virtual void unload() {}
       virtual void viewport_changed(const Resolution& res) = 0;
-      virtual void run(const InputState& input, GLuint fb) = 0;
+      virtual void run(float delta, const InputState& input, GLuint fb) = 0;
 
    protected:
       std::string libretro_dir;

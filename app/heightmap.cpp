@@ -149,10 +149,10 @@ class HeightmapApp : public LibretroGLApplication
          update_global_data();
       }
 
-      void update_input(const InputState::Analog& analog, const InputState::Buttons& buttons)
+      void update_input(float delta, const InputState::Analog& analog, const InputState::Buttons& buttons)
       {
-         player_view_deg_y += analog.rx * -2.0f;
-         player_view_deg_x += analog.ry * -1.5f;
+         player_view_deg_y += analog.rx * -120.0f * delta;
+         player_view_deg_x += analog.ry * -90.0f * delta;
          player_view_deg_x = clamp(player_view_deg_x, -80.0f, 80.0f);
 
          mat4 rotate_x = rotate(mat4(1.0), player_view_deg_x, vec3(1, 0, 0));
@@ -163,15 +163,15 @@ class HeightmapApp : public LibretroGLApplication
          vec3 right_walk_dir = vec3(rotate_y_right * vec4(0, 0, -1, 1));
 
 
-         vec3 mod_speed = buttons.r ? vec3(2.0f) : vec3(1.0f);
+         vec3 mod_speed = buttons.r ? vec3(120.0f) : vec3(60.0f);
          vec3 velocity = player_look_dir * vec3(analog.y * -0.25f) +
             right_walk_dir * vec3(analog.x * 0.25f);
 
-         player_pos += velocity * mod_speed;
+         player_pos += velocity * mod_speed * delta;
          update_global_data();
       }
 
-      void run(const InputState& input, GLuint) override
+      void run(float delta, const InputState& input, GLuint) override
       {
          auto analog = input.analog;
          if (fabsf(analog.x) < 0.3f)
@@ -182,7 +182,7 @@ class HeightmapApp : public LibretroGLApplication
             analog.rx = 0.0f;
          if (fabsf(analog.ry) < 0.3f)
             analog.ry = 0.0f;
-         update_input(analog, input.pressed);
+         update_input(delta, analog, input.pressed);
 
          if (input.triggered.a)
          {
