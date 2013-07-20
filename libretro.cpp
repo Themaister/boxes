@@ -176,9 +176,31 @@ void retro_run(void)
    video_cb(RETRO_HW_FRAME_BUFFER_VALID, width, height, 0);
 }
 
+#ifdef GL_DEBUG
+static void APIENTRY debug_cb(GLenum source,
+      GLenum type,
+      GLuint id,
+      GLenum severity,
+      GLsizei length,
+      const GLchar *message, void *userParam)
+{
+   std::cerr << "[OpenGL debug]: " << message << std::endl;
+}
+#endif
+
 static void context_reset(void)
 {
    rglgen_resolve_symbols(hw_render.get_proc_address);
+
+#ifdef GL_DEBUG
+   if (glDebugMessageCallbackARB)
+   {
+      std::cerr << "[OpenGL debug]: Using ARB_debug_output." << std::endl;
+      glDebugMessageCallbackARB(debug_cb, nullptr);
+      glDebugMessageControlARB(GL_DONT_CARE, GL_DONT_CARE, GL_DONT_CARE, 0, nullptr, GL_TRUE);
+   }
+#endif
+
    ContextManager::get().notify_reset();
 }
 
@@ -220,6 +242,9 @@ bool retro_load_game(const struct retro_game_info *info)
    hw_render.bottom_left_origin = true;
    hw_render.depth = true;
    hw_render.stencil = true;
+#ifdef GL_DEBUG
+   hw_render.debug_context = true;
+#endif
    app->get_context_version(hw_render.version_major, hw_render.version_minor);
 
    if (!environ_cb(RETRO_ENVIRONMENT_SET_HW_RENDER, &hw_render))

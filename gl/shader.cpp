@@ -122,11 +122,13 @@ namespace GL
             glUniformBlockBinding(prog, block, map.second);
       }
 
+      glUseProgram(prog);
       for (unsigned i = 0; i < 16; i++)
       {
          auto sampler = String::cat("uSampler", i);
          glUniform1i(glGetUniformLocation(prog, sampler.c_str()), i);
       }
+      glUseProgram(0);
 
       return prog;
    }

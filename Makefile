@@ -36,7 +36,7 @@ endif
 CXXFLAGS += $(INCFLAGS)
 
 ifeq ($(DEBUG), 1)
-   CXXFLAGS += -O0 -g
+   CXXFLAGS += -O0 -g -DGL_DEBUG
    CFLAGS += -O0 -g
 else
    CXXFLAGS += -O3

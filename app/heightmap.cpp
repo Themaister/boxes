@@ -261,22 +261,14 @@ class HeightmapApp : public LibretroGLApplication
          sampler.init(Sampler::TrilinearClamp);
 
          skybox.tex.load_texture_2d({Texture::TextureCube, {
-#if 0
                   path("app/bluesky_right.png"),
                   path("app/bluesky_left.png"),
                   path("app/bluesky_top.png"),
                   path("app/bluesky_top.png"),
                   path("app/bluesky_front.png"),
                   path("app/bluesky_back.png"),
-#endif
-                  path("app/test.png"),
-                  path("app/test.png"),
-                  path("app/test.png"),
-                  path("app/test.png"),
-                  path("app/test.png"),
-                  path("app/test.png"),
-               }, false });
-         skybox.sampler.init(Sampler::BilinearWrap);
+               }, true});
+         skybox.sampler.init(Sampler::TrilinearClamp);
          skybox.shader.init(path("skybox.vs"), path("skybox.fs"));
          vector<int8_t> vertices = { -1, -1, 1, -1, -1, 1, 1, 1 };
          skybox.vertex.init(GL_ARRAY_BUFFER, 8, Buffer::None, vertices.data());

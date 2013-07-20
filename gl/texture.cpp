@@ -1,5 +1,9 @@
 #include "texture.hpp"
 #include <rpng/rpng.h>
+#include <math.h>
+#include <utility>
+
+using namespace std;
 
 namespace GL
 {
@@ -277,15 +281,7 @@ namespace GL
 
    unsigned Texture::size_to_miplevels(unsigned width, unsigned height)
    {
-      unsigned levels = 0;
-      while (width > 1 || height > 1)
-      {
-         width = (width + 1) >> 1;
-         height = (height + 1) >> 1;
-         levels++;
-      }
-
-      return levels;
+      return unsigned(floor(log2(max(width, height))) + 1);
    }
 
    void Texture::setup()
