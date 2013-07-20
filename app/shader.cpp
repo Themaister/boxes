@@ -5,6 +5,9 @@
 using namespace std;
 using namespace Log;
 
+vector<Shader::Define> Shader::global_defines;
+unsigned Shader::total_global_bits;
+
 void Shader::log_shader(GLuint obj, const vector<const GLchar*>& source)
 {
    GLint len = 0;
@@ -69,6 +72,9 @@ vector<string> Shader::current_defines() const
    for (auto& define : defines)
       ret.push_back(String::cat("#define ",
                define.name, " ", to_string(define.value), "\n"));
+   for (auto& define : global_defines)
+      ret.push_back(String::cat("#define ",
+               define.name, " ", to_string(define.value), "\n"));
    return ret;
 }
 
@@ -121,6 +127,8 @@ void Shader::reserve_define(const string& name, unsigned define_bits)
 {
    defines.push_back({total_bits, define_bits, 0, name});
    total_bits += define_bits;
+   if (total_bits > 16)
+      throw std::runtime_error("16 bits of define space exceeded.");
 }
 
 unsigned Shader::compute_permutation() const
@@ -128,6 +136,8 @@ unsigned Shader::compute_permutation() const
    unsigned permute = 0;
    for (auto& define : defines)
       permute |= define.value << define.start_bit;
+   for (auto& define : global_defines)
+      permute |= define.value << (define.start_bit + 16);
    return permute;
 }
 
@@ -139,6 +149,30 @@ void Shader::set_define(const string& name, unsigned value)
          });
 
    if (itr != end(defines))
+   {
+      itr->value = value & ((1 << itr->bits) - 1);
+      current_permutation = compute_permutation();
+      if (active)
+         use();
+   }
+}
+
+void Shader::reserve_global_define(const string& name, unsigned define_bits)
+{
+   global_defines.push_back({total_global_bits, define_bits, 0, name});
+   total_global_bits += define_bits;
+   if (total_global_bits > 16)
+      throw std::runtime_error("16 bits of global define space exceeded.");
+}
+
+void Shader::set_global_define(const string& name, unsigned value)
+{
+   auto itr = find_if(begin(global_defines),
+         end(global_defines), [&name](const Define& def) {
+            return def.name == name;
+         });
+
+   if (itr != end(global_defines))
    {
       itr->value = value & ((1 << itr->bits) - 1);
       current_permutation = compute_permutation();

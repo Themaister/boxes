@@ -38,6 +38,9 @@ class Shader : public ContextListener, public ContextResource
       void reserve_define(const std::string& name, unsigned bits);
       void set_define(const std::string& name, unsigned value);
 
+      static void reserve_global_define(const std::string& name, unsigned bits);
+      void set_global_define(const std::string& name, unsigned value);
+
    private:
       std::map<unsigned, GLuint> progs;
       unsigned current_permutation = 0;
@@ -51,6 +54,9 @@ class Shader : public ContextListener, public ContextResource
          std::string name;
       };
       std::vector<Define> defines;
+
+      static unsigned total_global_bits;
+      static std::vector<Define> global_defines;
 
       std::string source_vs, source_fs;
       bool alive = false;

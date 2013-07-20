@@ -187,7 +187,7 @@ class HeightmapApp : public LibretroGLApplication
          if (input.triggered.a)
          {
             foo_define ^= 1;
-            shader.set_define("FOO", foo_define);
+            shader.set_global_define("FOO", foo_define);
          }
 
          glViewport(0, 0, width, height);
@@ -227,7 +227,7 @@ class HeightmapApp : public LibretroGLApplication
          player_view_deg_y = 0.0f;
 
          shader.init(path("test.vs"), path("test.fs"));
-         shader.reserve_define("FOO", 1);
+         Shader::reserve_global_define("FOO", 1);
          grid.init(128);
       }
 
