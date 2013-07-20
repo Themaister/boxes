@@ -8,6 +8,7 @@ uniform GlobalVertexData
    mat4 inv_view;
    mat4 inv_view_nt;
    mat4 inv_proj;
+   vec4 camera_pos;
 };
 
 in vec2 aVertex;
@@ -15,17 +16,13 @@ in vec2 aTexCoord;
 in vec3 aNormal;
 
 out vec2 vTex;
-out vec3 vNormal;
-out float vHeight;
+out vec3 vWorldPos;
 
 void main()
 {
-   float height = sin(aVertex.x) * cos(aVertex.y);
-   gl_Position = vp * vec4(aVertex.x, height, aVertex.y, 1.0);
-   vHeight = height;
-
+   vec4 world = vec4(aVertex.x - 64.0, aVertex.y - 64.0, -10.0, 1.0);
+   gl_Position = vp * world;
    vTex = vec2(1.0, -1.0) * aVertex / 128.0;
-   vec4 norm = vp * vec4(aNormal, 0.0);
-   vNormal = norm.xyz;
+   vWorldPos = world.xyz;
 }
 

@@ -49,7 +49,7 @@ class HeightGrid
             for (unsigned x = 0; x < size; x++)
             {
                vertices.push_back(x);
-               vertices.push_back(-int(size - 1 - y));
+               vertices.push_back(int(size) - 1 - y);
             }
          }
 
@@ -136,6 +136,8 @@ class HeightmapApp : public LibretroGLApplication
 
          global.vp = global.proj * global.view;
          global.inv_vp = inverse(global.vp);
+
+         global.camera_pos = vec4(player_pos.x, player_pos.y, player_pos.z, 0.0);
 
          GlobalTransforms *buf;
          if (global_buffer.map(buf))
@@ -261,12 +263,12 @@ class HeightmapApp : public LibretroGLApplication
          sampler.init(Sampler::TrilinearClamp);
 
          skybox.tex.load_texture_2d({Texture::TextureCube, {
-                  path("app/bluesky_right.png"),
-                  path("app/bluesky_left.png"),
-                  path("app/bluesky_top.png"),
-                  path("app/bluesky_top.png"),
-                  path("app/bluesky_front.png"),
-                  path("app/bluesky_back.png"),
+                  path("app/skybox_autum_forest_right.png"),
+                  path("app/skybox_pine_forest_left.png"),
+                  path("app/skybox_autum_forest_top.png"),
+                  path("app/skybox_autum_forest_bottom.png"),
+                  path("app/skybox_pine_forest_front.png"),
+                  path("app/skybox_autum_forest_back.png"),
                }, true});
          skybox.sampler.init(Sampler::TrilinearClamp);
          skybox.shader.init(path("skybox.vs"), path("skybox.fs"));
@@ -294,6 +296,7 @@ class HeightmapApp : public LibretroGLApplication
          mat4 inv_view;
          mat4 inv_view_nt;
          mat4 inv_proj;
+         vec4 camera_pos;
       };
 
       GlobalTransforms global;
