@@ -1,10 +1,11 @@
 #include "libretro.h"
 #include "util.hpp"
-#include "global.hpp"
-
+#include <gl/global.hpp>
 #include <cstring>
+
 using namespace std;
 using namespace Log;
+using namespace GL;
 
 static struct retro_hw_render_callback hw_render;
 static string libretro_dir;

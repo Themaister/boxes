@@ -1,7 +1,7 @@
-#include "../global.hpp"
-#include "buffer.hpp"
-#include "shader.hpp"
-#include "vertex_array.hpp"
+#include <gl/global.hpp>
+#include <gl/buffer.hpp>
+#include <gl/shader.hpp>
+#include <gl/vertex_array.hpp>
 #include <memory>
 #include <cstdint>
 
@@ -11,6 +11,7 @@
 
 using namespace std;
 using namespace glm;
+using namespace GL;
 
 class HeightGrid
 {
