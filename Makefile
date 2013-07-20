@@ -43,8 +43,8 @@ else
    CFLAGS += -O3
 endif
 
-CXXFLAGS += -std=gnu++11 -Wall -pedantic $(fpic)
-CFLAGS += -std=gnu99 -Wall -pedantic $(fpic)
+CXXFLAGS += -std=gnu++11 -Wall -pedantic $(fpic) -DHAVE_ZIP_DEFLATE
+CFLAGS += -std=gnu99 -Wall -pedantic $(fpic) -DHAVE_ZIP_DEFLATE
 
 SOURCES := $(wildcard *.cpp) $(wildcard */*.cpp)
 CSOURCES := $(wildcard *.c) $(wildcard */*.c)
@@ -56,7 +56,7 @@ all: $(TARGET)
 HEADERS := $(wildcard *.hpp) $(wildcard *.h) $(wildcard */*.hpp) $(wildcard */*.h)
 
 $(TARGET): $(OBJECTS)
-	$(CXX) $(fpic) $(SHARED) $(INCLUDES) -o $@ $(OBJECTS) $(LIBS) -lm
+	$(CXX) $(fpic) $(SHARED) $(INCLUDES) -o $@ $(OBJECTS) $(LIBS) -lm -lz
 
 %.o: %.cpp $(HEADERS)
 	$(CXX) $(CXXFLAGS) -c -o $@ $<

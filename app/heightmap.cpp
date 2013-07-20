@@ -2,6 +2,7 @@
 #include <gl/buffer.hpp>
 #include <gl/shader.hpp>
 #include <gl/vertex_array.hpp>
+#include <gl/texture.hpp>
 #include <memory>
 #include <cstdint>
 
@@ -129,7 +130,9 @@ class HeightmapApp : public LibretroGLApplication
          global.proj = perspective(45.0f, float(width) / float(height), 0.1f, 500.0f);
          global.inv_proj = inverse(global.proj);
          global.view = lookAt(player_pos, player_pos + player_look_dir, vec3(0, 1, 0));
+         global.view_nt = lookAt(vec3(0.0f), player_look_dir, vec3(0, 1, 0));
          global.inv_view = inverse(global.view);
+         global.inv_view_nt = inverse(global.view_nt);
 
          global.vp = global.proj * global.view;
          global.inv_vp = inverse(global.vp);
@@ -172,6 +175,30 @@ class HeightmapApp : public LibretroGLApplication
          update_global_data();
       }
 
+      void bind_all()
+      {
+         global_buffer.bind();
+         global_frag_buffer.bind();
+         shader.use();
+         tex.bind(0);
+         sampler.bind(0);
+
+         skybox.tex.bind(1);
+         skybox.sampler.bind(1);
+      }
+
+      void unbind_all()
+      {
+         global_buffer.unbind();
+         global_frag_buffer.unbind();
+         shader.unbind();
+         tex.unbind(0);
+         sampler.unbind(0);
+
+         skybox.tex.unbind(1);
+         skybox.sampler.unbind(1);
+      }
+
       void run(float delta, const InputState& input, GLuint) override
       {
          auto analog = input.analog;
@@ -197,16 +224,15 @@ class HeightmapApp : public LibretroGLApplication
 
          glEnable(GL_CULL_FACE);
          glEnable(GL_DEPTH_TEST);
+         glDepthFunc(GL_LEQUAL);
 
-         global_buffer.bind();
-         global_frag_buffer.bind();
-         shader.use();
-
+         bind_all();
          grid.render();
-
-         global_buffer.unbind();
-         global_frag_buffer.unbind();
-         shader.unbind();
+         skybox.shader.use();
+         skybox.arrays.bind();
+         glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+         skybox.arrays.unbind();
+         unbind_all();
       }
 
       void get_context_version(unsigned& major, unsigned& minor) const override
@@ -230,6 +256,31 @@ class HeightmapApp : public LibretroGLApplication
          shader.init(path("test.vs"), path("test.fs"));
          Shader::reserve_global_define("FOO", 1);
          grid.init(128);
+
+         tex.load_texture_2d({Texture::Texture2D, { path("app/test.png") }, true });
+         sampler.init(Sampler::TrilinearClamp);
+
+         skybox.tex.load_texture_2d({Texture::TextureCube, {
+#if 0
+                  path("app/bluesky_right.png"),
+                  path("app/bluesky_left.png"),
+                  path("app/bluesky_top.png"),
+                  path("app/bluesky_top.png"),
+                  path("app/bluesky_front.png"),
+                  path("app/bluesky_back.png"),
+#endif
+                  path("app/test.png"),
+                  path("app/test.png"),
+                  path("app/test.png"),
+                  path("app/test.png"),
+                  path("app/test.png"),
+                  path("app/test.png"),
+               }, false });
+         skybox.sampler.init(Sampler::BilinearWrap);
+         skybox.shader.init(path("skybox.vs"), path("skybox.fs"));
+         vector<int8_t> vertices = { -1, -1, 1, -1, -1, 1, 1, 1 };
+         skybox.vertex.init(GL_ARRAY_BUFFER, 8, Buffer::None, vertices.data());
+         skybox.arrays.setup({{Shader::VertexLocation, 2, GL_BYTE, GL_FALSE, 0, 0}}, &skybox.vertex, nullptr);
       }
 
    private:
@@ -245,9 +296,11 @@ class HeightmapApp : public LibretroGLApplication
       {
          mat4 vp;
          mat4 view;
+         mat4 view_nt;
          mat4 proj;
          mat4 inv_vp;
          mat4 inv_view;
+         mat4 inv_view_nt;
          mat4 inv_proj;
       };
 
@@ -258,6 +311,18 @@ class HeightmapApp : public LibretroGLApplication
       unsigned foo_define = 0;
 
       HeightGrid grid;
+
+      Texture tex;
+      Sampler sampler;
+
+      struct
+      {
+         Texture tex;
+         Sampler sampler;
+         Shader shader;
+         VertexArray arrays;
+         Buffer vertex;
+      } skybox;
 };
 
 unique_ptr<LibretroGLApplication> libretro_gl_application_create()
