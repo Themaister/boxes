@@ -236,7 +236,6 @@ bool retro_load_game(const struct retro_game_info *info)
       return false;
    }
 
-   hw_render.context_type = RETRO_HW_CONTEXT_OPENGL_CORE;
    hw_render.context_reset = context_reset;
    hw_render.context_destroy = context_destroy;
    hw_render.bottom_left_origin = true;
@@ -245,7 +244,13 @@ bool retro_load_game(const struct retro_game_info *info)
 #ifdef GL_DEBUG
    hw_render.debug_context = true;
 #endif
+
+#ifdef HAVE_OPENGLES2
+   hw_render.context_type = RETRO_HW_CONTEXT_OPENGLES2;
+#else
+   hw_render.context_type = RETRO_HW_CONTEXT_OPENGL_CORE;
    app->get_context_version(hw_render.version_major, hw_render.version_minor);
+#endif
 
    if (!environ_cb(RETRO_ENVIRONMENT_SET_HW_RENDER, &hw_render))
       return false;

@@ -53,7 +53,11 @@ namespace GL
          const vector<string>& defines)
    {
       vector<const GLchar*> gl_source = {
+#ifdef HAVE_OPENGLES3
+         "#version 300 es\nlayout(std140) uniform;\n",
+#else
          "#version 140\nlayout(std140) uniform;\n",
+#endif
       };
       for (auto& define : defines)
          gl_source.push_back(define.c_str());
@@ -89,6 +93,9 @@ namespace GL
       auto defines = current_defines();
 
       compile_shader(vert, source_vs, defines);
+#ifdef HAVE_OPENGLES3
+      defines.insert(begin(defines), "precision highp float;\n");
+#endif
       compile_shader(frag, source_fs, defines);
 
       glAttachShader(prog, vert);

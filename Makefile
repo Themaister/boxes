@@ -47,9 +47,20 @@ CXXFLAGS += -std=gnu++11 -Wall -pedantic $(fpic) -DHAVE_ZIP_DEFLATE $(shell pkg-
 CFLAGS += -std=gnu99 -Wall -pedantic $(fpic) -DHAVE_ZIP_DEFLATE
 
 SOURCES := $(wildcard *.cpp) $(wildcard */*.cpp)
-CSOURCES := $(wildcard *.c) $(wildcard */*.c)
+CSOURCES = $(wildcard rpng/*.c) glsym/rglgen.c
+LIBS += $(shell pkg-config assimp --libs)
+
+ifeq ($(GLES), 1)
+   LIBS += -lGLESv2
+   CXXFLAGS += -DHAVE_OPENGLES2 -DHAVE_OPENGLES3
+   CFLAGS += -DHAVE_OPENGLES2 -DHAVE_OPENGLES3
+   CSOURCES += glsym/glsym_es2.c
+else
+   LIBS += $(GL_LIB) 
+   CSOURCES += glsym/glsym_gl.c
+endif
+
 OBJECTS := $(SOURCES:.cpp=.o) $(CSOURCES:.c=.o)
-LIBS += $(GL_LIB) $(shell pkg-config assimp --libs)
 
 all: $(TARGET)
 
