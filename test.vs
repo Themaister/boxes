@@ -11,7 +11,7 @@ uniform GlobalVertexData
    vec4 camera_pos;
 };
 
-uniform VertexSlot1
+uniform ModelTransform
 {
    mat4 model;
 };

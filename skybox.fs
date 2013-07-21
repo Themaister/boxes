@@ -6,7 +6,7 @@ uniform GlobalFragmentData
    vec4 light_ambient;
 };
 
-uniform samplerCube uSampler0;
+uniform samplerCube skybox;
 
 in vec3 vDirection;
 out vec4 FragColor;
@@ -19,7 +19,7 @@ float saturate(float a)
 void main()
 {
    vec3 dir = normalize(vDirection);
-   vec4 col = texture(uSampler0, dir);
+   vec4 col = texture(skybox, dir);
    vec3 to_light = light_pos.xyz - camera_pos.xyz;
    col += pow(saturate(dot(dir, normalize(to_light))), 200.0 * length(to_light));
    FragColor = col;

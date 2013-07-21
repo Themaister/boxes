@@ -30,9 +30,9 @@ class Scene
 
          }
 
-         mat4 model = translate(mat4(1.0), vec3(0, -5, -10));
+         mat4 model = translate(mat4(1.0), vec3(0, -5, -50));
          uniform_offset.init(GL_UNIFORM_BUFFER, sizeof(model),
-               Buffer::None, value_ptr(model), Shader::VertexSlot1);
+               Buffer::None, value_ptr(model), 2);
       }
 
       void render()
@@ -228,6 +228,8 @@ class HeightmapApp : public LibretroGLApplication
          player_view_deg_y = 0.0f;
 
          shader.init(path("test.vs"), path("test.fs"));
+         shader.set_samplers({{ "skybox", 0 }});
+         shader.set_uniform_buffers({{ "ModelTransform", 2 }});
          scene.init(path("test.obj"));
          skybox.tex.load_texture_2d({Texture::TextureCube, {
                   path("app/xpos.png"),
@@ -239,6 +241,8 @@ class HeightmapApp : public LibretroGLApplication
                }, true});
          skybox.sampler.init(Sampler::TrilinearClamp);
          skybox.shader.init(path("skybox.vs"), path("skybox.fs"));
+         skybox.shader.set_samplers({{ "skybox", 0 }});
+         skybox.shader.set_uniform_buffers({{ "ModelTransform", 2 }});
          vector<int8_t> vertices = { -1, -1, 1, -1, -1, 1, 1, 1 };
          skybox.vertex.init(GL_ARRAY_BUFFER, 8, Buffer::None, vertices.data());
          skybox.arrays.setup({{Shader::VertexLocation, 2, GL_BYTE, GL_FALSE, 0, 0}}, &skybox.vertex, nullptr);

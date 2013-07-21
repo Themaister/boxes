@@ -20,15 +20,23 @@ namespace GL
          enum UniformLocation
          {
             GlobalVertexData = 0,
-            GlobalFragmentData = 1,
-            VertexSlot1 = 2,
-            VertexSlot2 = 3,
-            VertexSlot3 = 4,
-            FragmentSlot1 = 5,
-            FragmentSlot2 = 6,
-            FragmentSlot3 = 7,
+            GlobalFragmentData = 1
          };
 
+         struct Sampler
+         {
+            std::string name;
+            unsigned unit;
+         };
+
+         struct UniformBuffer
+         {
+            std::string name;
+            unsigned index;
+         };
+
+         void set_samplers(const std::vector<Sampler>& samplers);
+         void set_uniform_buffers(const std::vector<UniformBuffer>& uniform_buffers);
          void init(const std::string& path_vs, const std::string& path_fs);
 
          void use();
@@ -73,6 +81,9 @@ namespace GL
          unsigned compute_permutation() const;
 
          bool active = false;
+         std::vector<Sampler> samplers;
+         std::vector<UniformBuffer> uniform_buffers;
+         void bind_uniforms();
    };
 }
 

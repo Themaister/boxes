@@ -84,6 +84,52 @@ namespace GL
       return ret;
    }
 
+   void Shader::bind_uniforms()
+   {
+      static const vector<pair<const char*, unsigned>> uniform_mapping = {
+         { "GlobalVertexData", GlobalVertexData },
+         { "GlobalFragmentData", GlobalFragmentData },
+      };
+
+      for (auto& progpair : progs)
+      {
+         GLuint prog = progpair.second;
+
+         for (auto& map : uniform_mapping)
+         {
+            GLuint block = glGetUniformBlockIndex(prog, map.first);
+            if (block != GL_INVALID_INDEX)
+               glUniformBlockBinding(prog, block, map.second);
+         }
+
+         for (auto& buffer : uniform_buffers)
+         {
+            GLuint block = glGetUniformBlockIndex(prog, buffer.name.c_str());
+            if (block != GL_INVALID_INDEX)
+               glUniformBlockBinding(prog, block, buffer.index);
+         }
+
+         glUseProgram(prog);
+         for (auto& sampler : samplers)
+            glUniform1i(glGetUniformLocation(prog, sampler.name.c_str()), sampler.unit);
+         glUseProgram(0);
+      }
+   }
+
+   void Shader::set_samplers(const vector<Sampler>& samplers)
+   {
+      this->samplers = samplers;
+      if (active)
+         bind_uniforms();
+   }
+
+   void Shader::set_uniform_buffers(const vector<UniformBuffer>& uniform_buffers)
+   {
+      this->uniform_buffers = uniform_buffers;
+      if (active)
+         bind_uniforms();
+   }
+
    GLuint Shader::compile_shaders()
    {
       GLuint prog = glCreateProgram();
@@ -110,32 +156,6 @@ namespace GL
 
       glDeleteShader(vert);
       glDeleteShader(frag);
-
-      static const vector<pair<const char*, unsigned>> uniform_mapping = {
-         { "GlobalVertexData", GlobalVertexData },
-         { "GlobalFragmentData", GlobalFragmentData },
-         { "VertexSlot1", VertexSlot1 },
-         { "VertexSlot2", VertexSlot2 },
-         { "VertexSlot3", VertexSlot3 },
-         { "FragmentSlot1", FragmentSlot1 },
-         { "FragmentSlot2", FragmentSlot2 },
-         { "FragmentSlot3", FragmentSlot3 },
-      };
-
-      for (auto& map : uniform_mapping)
-      {
-         GLuint block = glGetUniformBlockIndex(prog, map.first);
-         if (block != GL_INVALID_INDEX)
-            glUniformBlockBinding(prog, block, map.second);
-      }
-
-      glUseProgram(prog);
-      for (unsigned i = 0; i < 16; i++)
-      {
-         auto sampler = String::cat("uSampler", i);
-         glUniform1i(glGetUniformLocation(prog, sampler.c_str()), i);
-      }
-      glUseProgram(0);
 
       return prog;
    }
@@ -216,6 +236,7 @@ namespace GL
       if (!prog)
          progs[current_permutation] = prog = compile_shaders();
 
+      bind_uniforms();
       glUseProgram(prog);
       active = true;
    }

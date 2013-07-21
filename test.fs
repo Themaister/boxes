@@ -9,7 +9,7 @@ uniform GlobalFragmentData
 in vec3 vWorldPos;
 in vec3 vNormal;
 
-uniform samplerCube uSampler0;
+uniform samplerCube skybox; 
 
 out vec4 FragColor;
 
@@ -38,8 +38,8 @@ void main()
    float incidence = 0.0;
       incidence = dot(refract_normal, -normal);
 
-   vec4 refracted = texture(uSampler0, refract_normal);
-   vec4 reflected = texture(uSampler0, reflect_normal);
+   vec4 refracted = texture(skybox, refract_normal);
+   vec4 reflected = texture(skybox, reflect_normal);
 
    vec4 col = light_ambient + light_color * spec;
    FragColor = mix(reflected, refracted, incidence) + col * vec4(1.1, 0.8, 0.7, 1.0);
