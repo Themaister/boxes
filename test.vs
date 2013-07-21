@@ -11,18 +11,22 @@ uniform GlobalVertexData
    vec4 camera_pos;
 };
 
-in vec2 aVertex;
-in vec2 aTexCoord;
+uniform VertexSlot1
+{
+   mat4 model;
+};
+
+in vec3 aVertex;
 in vec3 aNormal;
 
-out vec2 vTex;
 out vec3 vWorldPos;
+out vec3 vNormal;
 
 void main()
 {
-   vec4 world = vec4(aVertex.x - 64.0, aVertex.y - 64.0, -10.0, 1.0);
+   vec4 world = model * vec4(aVertex, 1.0);
    gl_Position = vp * world;
-   vTex = vec2(1.0, -1.0) * aVertex / 128.0;
    vWorldPos = world.xyz;
+   vNormal = mat3(model) * aNormal;
 }
 

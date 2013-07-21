@@ -43,13 +43,13 @@ else
    CFLAGS += -O3
 endif
 
-CXXFLAGS += -std=gnu++11 -Wall -pedantic $(fpic) -DHAVE_ZIP_DEFLATE
+CXXFLAGS += -std=gnu++11 -Wall -pedantic $(fpic) -DHAVE_ZIP_DEFLATE $(shell pkg-config assimp --cflags)
 CFLAGS += -std=gnu99 -Wall -pedantic $(fpic) -DHAVE_ZIP_DEFLATE
 
 SOURCES := $(wildcard *.cpp) $(wildcard */*.cpp)
 CSOURCES := $(wildcard *.c) $(wildcard */*.c)
 OBJECTS := $(SOURCES:.cpp=.o) $(CSOURCES:.c=.o)
-LIBS += $(GL_LIB)
+LIBS += $(GL_LIB) $(shell pkg-config assimp --libs)
 
 all: $(TARGET)
 

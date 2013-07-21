@@ -4,6 +4,7 @@
 #include "global.hpp"
 #include <stdexcept>
 #include <cstring>
+#include <type_traits>
 
 namespace GL
 {
@@ -18,6 +19,13 @@ namespace GL
          };
 
          void init(GLenum target, GLsizei size, GLuint flags, const void *initial_data = nullptr, GLuint index = 0);
+
+         template<typename T>
+         typename std::enable_if<sizeof(typename T::value_type) != 0, void>::type init(GLenum target, const T& t, GLuint flags, GLuint index = 0)
+         {
+            init(target, t.size() * sizeof(typename T::value_type), flags, t.data(), index);
+         }
+
          void reset() override;
          void destroyed() override;
 

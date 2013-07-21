@@ -12,6 +12,16 @@
 #include <algorithm>
 #include <cstdarg>
 #include <cstring>
+#include <memory>
+
+namespace Util
+{
+   template<typename T, typename... P>
+   inline std::unique_ptr<T> make_unique(P&&... p)
+   {
+      return std::unique_ptr<T>(new T(std::forward<P>(p)...));
+   }
+}
 
 namespace Template
 {
@@ -24,10 +34,25 @@ namespace Template
       return *itr;
    }
 
+   template<typename T, typename P>
+   inline auto find_if_or_throw(T& t, const P& pred) -> decltype(*std::begin(t))
+   {
+      auto itr = std::find_if(std::begin(t), std::end(t), pred);
+      if (itr == std::end(t))
+         throw std::runtime_error("Couldn't find element in iterator.");
+      return *itr;
+   }
+
+   template<typename T, typename P>
+   inline void erase_if_all(T& t, const P& p)
+   {
+      t.erase(std::remove_if(std::begin(t), std::end(t), p), std::end(t));
+   }
+
    template<typename T, typename U>
    inline void erase_all(T& t, const U& u)
    {
-      t.erase(std::remove_if(std::begin(t), std::end(t), [&u](const U& other) { return other == u; }), std::end(t));
+      erase_if_all(t, [&u](const U& other) { return other == u; });
    }
 }
 

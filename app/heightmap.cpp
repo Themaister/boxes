@@ -3,83 +3,61 @@
 #include <gl/shader.hpp>
 #include <gl/vertex_array.hpp>
 #include <gl/texture.hpp>
+#include <gl/mesh.hpp>
 #include <memory>
 #include <cstdint>
-
-#include <glm/glm.hpp>
-#include <glm/gtc/matrix_transform.hpp>
-#include <glm/gtc/type_ptr.hpp>
 
 using namespace std;
 using namespace glm;
 using namespace GL;
 
-class HeightGrid
+class Scene 
 {
    public:
-      void init(unsigned size)
+      void init(const std::string& path)
       {
-         init_vertices(size);
-         init_indices(size);
-         vector<VertexArray::Array> arrays = {
-            { Shader::VertexLocation, 2, GL_SHORT, GL_FALSE, 0, 0 },
-         };
-         array.setup(arrays, &vertex, &elems);
+         auto meshes = load_scene(path);
+
+         for (auto& mesh : meshes)
+         {
+            auto drawable = Util::make_unique<Drawable>();
+            drawable->vertex.init(GL_ARRAY_BUFFER, mesh.vbo, Buffer::None);
+            drawable->elems.init(GL_ELEMENT_ARRAY_BUFFER, mesh.ibo, Buffer::None);
+            drawable->array.setup(mesh.arrays, &drawable->vertex,
+                  &drawable->elems);
+            drawable->indices = mesh.ibo.size();
+            drawables.push_back(move(drawable));
+
+         }
+
+         mat4 model = translate(mat4(1.0), vec3(0, -5, -10));
+         uniform_offset.init(GL_UNIFORM_BUFFER, sizeof(model),
+               Buffer::None, value_ptr(model), Shader::VertexSlot1);
       }
 
       void render()
       {
-         array.bind();
-         glDrawElements(GL_TRIANGLE_STRIP, elements, GL_UNSIGNED_SHORT, nullptr);
-         array.unbind();
+         uniform_offset.bind();
+         for (auto& drawable : drawables)
+         {
+            drawable->array.bind();
+            glDrawElements(GL_TRIANGLES, drawable->indices,
+                  GL_UNSIGNED_INT, nullptr);
+            drawable->array.unbind();
+         }
+         uniform_offset.unbind();
       }
 
    private:
-      VertexArray array;
-      Buffer vertex;
-      Buffer elems;
-      unsigned elements = 0;
-
-      void init_vertices(unsigned size)
+      struct Drawable
       {
-         vector<GLshort> vertices;
-         vertices.reserve(2 * size * size);
-         for (unsigned y = 0; y < size; y++)
-         {
-            for (unsigned x = 0; x < size; x++)
-            {
-               vertices.push_back(x);
-               vertices.push_back(int(size) - 1 - y);
-            }
-         }
-
-         vertex.init(GL_ARRAY_BUFFER, 2 * size * size * sizeof(GLshort), Buffer::None, vertices.data());
-      }
-
-      void init_indices(unsigned size)
-      {
-         elements = (size - 1) * (2 * size + 1);
-
-         vector<GLushort> indices;
-         indices.reserve(elements);
-
-         int pos = 0;
-         for (unsigned y = 0; y < size - 1; y++)
-         {
-            int dir_odd = -int(size) + ((y & 1) ? -1 : 1);
-            int dir_even = size;
-
-            for (unsigned x = 0; x < 2 * size - 1; x++)
-            {
-               indices.push_back(pos);
-               pos += (x & 1) ? dir_odd : dir_even;
-            }
-            indices.push_back(pos);
-            indices.push_back(pos);
-         }
-
-         elems.init(GL_ELEMENT_ARRAY_BUFFER, elements * sizeof(GLushort), Buffer::None, indices.data());
-      }
+         VertexArray array;
+         Buffer vertex;
+         Buffer elems;
+         size_t indices;
+      };
+      Buffer uniform_offset;
+      vector<unique_ptr<Drawable>> drawables;
 };
 
 class HeightmapApp : public LibretroGLApplication
@@ -139,11 +117,23 @@ class HeightmapApp : public LibretroGLApplication
 
          global.camera_pos = vec4(player_pos.x, player_pos.y, player_pos.z, 0.0);
 
+         global_fragment.camera_pos = global.camera_pos;
+         global_fragment.light_pos = vec4(100.0, 100.0, 100.0, 1.0);
+         global_fragment.light_color = vec4(1.0);
+         global_fragment.light_ambient = vec4(0.25);
+
          GlobalTransforms *buf;
          if (global_buffer.map(buf))
          {
             *buf = global;
             global_buffer.unmap();
+         }
+
+         GlobalFragmentData *frag_buf;
+         if (global_fragment_buffer.map(frag_buf))
+         {
+            *frag_buf = global_fragment;
+            global_fragment_buffer.unmap();
          }
       }
 
@@ -169,36 +159,12 @@ class HeightmapApp : public LibretroGLApplication
          vec3 right_walk_dir = vec3(rotate_y_right * vec4(0, 0, -1, 1));
 
 
-         vec3 mod_speed = buttons.r ? vec3(120.0f) : vec3(60.0f);
+         vec3 mod_speed = buttons.r ? vec3(240.0f) : vec3(120.0f);
          vec3 velocity = player_look_dir * vec3(analog.y * -0.25f) +
             right_walk_dir * vec3(analog.x * 0.25f);
 
          player_pos += velocity * mod_speed * delta;
          update_global_data();
-      }
-
-      void bind_all()
-      {
-         global_buffer.bind();
-         global_frag_buffer.bind();
-         shader.use();
-         tex.bind(0);
-         sampler.bind(0);
-
-         skybox.tex.bind(1);
-         skybox.sampler.bind(1);
-      }
-
-      void unbind_all()
-      {
-         global_buffer.unbind();
-         global_frag_buffer.unbind();
-         shader.unbind();
-         tex.unbind(0);
-         sampler.unbind(0);
-
-         skybox.tex.unbind(1);
-         skybox.sampler.unbind(1);
       }
 
       void run(float delta, const InputState& input, GLuint) override
@@ -214,12 +180,6 @@ class HeightmapApp : public LibretroGLApplication
             analog.ry = 0.0f;
          update_input(delta, analog, input.pressed);
 
-         if (input.triggered.a)
-         {
-            foo_define ^= 1;
-            shader.set_global_define("FOO", foo_define);
-         }
-
          glViewport(0, 0, width, height);
          glClearColor(0.3f, 0.3f, 0.3f, 1.0f);
          glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
@@ -228,13 +188,26 @@ class HeightmapApp : public LibretroGLApplication
          glEnable(GL_DEPTH_TEST);
          glDepthFunc(GL_LEQUAL);
 
-         bind_all();
-         grid.render();
+         global_buffer.bind();
+         global_fragment_buffer.bind();
+
+         skybox.tex.bind(0);
+         skybox.sampler.bind(0);
+
+         shader.use();
+         scene.render();
+         shader.unbind();
+
          skybox.shader.use();
          skybox.arrays.bind();
          glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
          skybox.arrays.unbind();
-         unbind_all();
+         skybox.shader.unbind();
+
+         global_buffer.unbind();
+         global_fragment_buffer.unbind();
+         skybox.tex.unbind(0);
+         skybox.sampler.unbind(0);
       }
 
       void get_context_version(unsigned& major, unsigned& minor) const override
@@ -245,10 +218,9 @@ class HeightmapApp : public LibretroGLApplication
 
       void load() override
       {
-         global_buffer.init(GL_UNIFORM_BUFFER, sizeof(global), Buffer::WriteOnly);
-
-         vec4 global_color(0.8f, 0.6f, 0.2f, 1.0f);
-         global_frag_buffer.init(GL_UNIFORM_BUFFER, sizeof(global_color), Buffer::None, value_ptr(global_color), 1);
+         global_buffer.init(GL_UNIFORM_BUFFER, sizeof(global), Buffer::WriteOnly, nullptr, Shader::GlobalVertexData);
+         global_fragment_buffer.init(GL_UNIFORM_BUFFER,
+               sizeof(global_fragment), Buffer::WriteOnly, nullptr, Shader::GlobalFragmentData);
 
          player_pos = vec3(0.0f);
          player_look_dir = vec3(0, 0, -1);
@@ -256,19 +228,14 @@ class HeightmapApp : public LibretroGLApplication
          player_view_deg_y = 0.0f;
 
          shader.init(path("test.vs"), path("test.fs"));
-         Shader::reserve_global_define("FOO", 1);
-         grid.init(128);
-
-         tex.load_texture_2d({Texture::Texture2D, { path("app/test.png") }, true });
-         sampler.init(Sampler::TrilinearClamp);
-
+         scene.init(path("test.obj"));
          skybox.tex.load_texture_2d({Texture::TextureCube, {
-                  path("app/skybox_autum_forest_right.png"),
-                  path("app/skybox_pine_forest_left.png"),
-                  path("app/skybox_autum_forest_top.png"),
-                  path("app/skybox_autum_forest_bottom.png"),
-                  path("app/skybox_pine_forest_front.png"),
-                  path("app/skybox_autum_forest_back.png"),
+                  path("app/xpos.png"),
+                  path("app/xneg.png"),
+                  path("app/ypos.png"),
+                  path("app/yneg.png"),
+                  path("app/zpos.png"),
+                  path("app/zneg.png"),
                }, true});
          skybox.sampler.init(Sampler::TrilinearClamp);
          skybox.shader.init(path("skybox.vs"), path("skybox.fs"));
@@ -299,16 +266,21 @@ class HeightmapApp : public LibretroGLApplication
          vec4 camera_pos;
       };
 
+      struct GlobalFragmentData
+      {
+         vec4 camera_pos;
+         vec4 light_pos;
+         vec4 light_color;
+         vec4 light_ambient;
+      };
+
       GlobalTransforms global;
+      GlobalFragmentData global_fragment;
       Buffer global_buffer;
-      Buffer global_frag_buffer;
+      Buffer global_fragment_buffer;
+
       Shader shader;
-      unsigned foo_define = 0;
-
-      HeightGrid grid;
-
-      Texture tex;
-      Sampler sampler;
+      Scene scene;
 
       struct
       {
@@ -322,6 +294,6 @@ class HeightmapApp : public LibretroGLApplication
 
 unique_ptr<LibretroGLApplication> libretro_gl_application_create()
 {
-   return unique_ptr<LibretroGLApplication>(new HeightmapApp);
+   return Util::make_unique<HeightmapApp>();
 }
 

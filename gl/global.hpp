@@ -10,6 +10,10 @@
 
 #include "util.hpp"
 
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
+
 namespace GL
 {
    class LibretroGLApplication
@@ -101,10 +105,10 @@ namespace GL
 
          struct ListenerState
          {
-            ContextListener *listener;
+            ContextListener *listener = nullptr;
             bool signaled = false;
-            std::vector<ListenerState*> dependencies;
-            std::vector<ListenerState*> dependers;
+            std::vector<std::weak_ptr<ListenerState>> dependencies;
+            std::vector<std::weak_ptr<ListenerState>> dependers;
             uint64_t id = 0;
 
             void reset_chain();
@@ -116,7 +120,7 @@ namespace GL
             bool operator!=(const ContextListener& other) const { return listener != &other; }
          };
 
-         std::vector<ListenerState> listeners;
+         std::vector<std::shared_ptr<ListenerState>> listeners;
          bool alive = false;
 
          uint64_t context_id = 0;

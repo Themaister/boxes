@@ -1,40 +1,46 @@
-uniform GlobalVertexData
+uniform GlobalFragmentData
 {
-   mat4 vp;
-   mat4 view;
-   mat4 view_nt;
-   mat4 proj;
-   mat4 inv_vp;
-   mat4 inv_view;
-   mat4 inv_view_nt;
-   mat4 inv_proj;
    vec4 camera_pos;
+   vec4 light_pos;
+   vec4 light_color;
+   vec4 light_ambient;
 };
 
-in vec2 vTex;
 in vec3 vWorldPos;
+in vec3 vNormal;
 
-uniform sampler2D uSampler0;
-uniform samplerCube uSampler1;
+uniform samplerCube uSampler0;
 
 out vec4 FragColor;
 
+float saturate(float a)
+{
+   return clamp(a, 0.0, 1.0);
+}
+
 void main()
 {
-   vec3 to_plane = normalize(vWorldPos - camera_pos.xyz);
-   vec3 normal = vec3(0.02 * sin(vWorldPos.x * 0.15), 0.01 * cos(vWorldPos.y * 0.29), 1.0);
-   normal = normalize(normal);
-   vec3 reflect_dir = reflect(to_plane, normal);
-   vec4 col_reflect = texture(uSampler1, reflect_dir);
+   vec3 vEye = normalize(camera_pos.xyz - vWorldPos);
+   vec3 vLight = normalize(light_pos.xyz - vWorldPos);
+   vec3 normal = normalize(vNormal);
 
-   float fres = 1.0;
-   vec3 refract_dir = refract(to_plane, normal, 1.4);
-   vec4 col_refract = vec4(0.0);
-   if (refract_dir != vec3(0.0))
+   float ndotl = saturate(dot(vLight, normal));
+   float spec = 0.0;
+   if (ndotl > 0.0)
    {
-      col_refract = texture(uSampler1, refract_dir); 
-      fres = pow(1.0 - dot(refract_dir, -normal), 5.0);
+      vec3 half_vec = normalize(vEye + vLight);
+      spec = pow(saturate(dot(half_vec, normal)), 50.0);
    }
 
-   FragColor = mix(col_refract, col_reflect, fres);
+   vec3 refract_normal = refract(-vEye, normal, 1.4);
+   vec3 reflect_normal = reflect(-vEye, normal);
+
+   float incidence = 0.0;
+      incidence = dot(refract_normal, -normal);
+
+   vec4 refracted = texture(uSampler0, refract_normal);
+   vec4 reflected = texture(uSampler0, reflect_normal);
+
+   vec4 col = light_ambient + light_color * spec;
+   FragColor = mix(reflected, refracted, incidence) + col * vec4(1.1, 0.8, 0.7, 1.0);
 }
