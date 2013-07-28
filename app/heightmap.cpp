@@ -15,6 +15,9 @@ using namespace GL;
 class Scene : public ContextListener
 {
    public:
+      Scene() { ContextListener::init(); }
+      ~Scene() { deinit(); }
+
       void init()
       {
          mat4 model = translate(mat4(1.0), vec3(-100, -10, -100));

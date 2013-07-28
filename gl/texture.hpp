@@ -11,6 +11,9 @@ namespace GL
    class Sampler : public ContextListener, public ContextResource
    {
       public:
+         Sampler() { ContextListener::init(); }
+         ~Sampler() { deinit(); }
+
          enum Type
          {
             PointWrap,
@@ -44,6 +47,9 @@ namespace GL
    class Texture : public ContextListener, public ContextResource
    {
       public:
+         Texture() { init(); }
+         ~Texture() { deinit(); }
+
          enum Type
          {
             TextureNone = 0,

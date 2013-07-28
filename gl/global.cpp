@@ -8,13 +8,13 @@ using namespace Log;
 
 namespace GL
 {
-   ContextListener::ContextListener()
+   void ContextListener::init()
    {
       if (!dead_manager)
          ContextManager::get().register_listener(this);
    }
 
-   ContextListener::~ContextListener()
+   void ContextListener::deinit()
    {
       if (!dead_manager)
          ContextManager::get().unregister_listener(this);

@@ -9,6 +9,8 @@ namespace GL
    class VertexArray : public ContextListener
    {
       public:
+         VertexArray() { init(); }
+         ~VertexArray() { deinit(); }
          struct Array
          {
             GLuint location;

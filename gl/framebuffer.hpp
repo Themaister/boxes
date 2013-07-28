@@ -13,6 +13,8 @@ namespace GL
    {
       public:
          friend class Framebuffer;
+         Renderbuffer() { ContextListener::init(); }
+         ~Renderbuffer() { deinit(); }
 
          void init(GLenum internal_format, unsigned width, unsigned height, unsigned samples = 0);
 
@@ -32,7 +34,8 @@ namespace GL
    class Framebuffer : public ContextListener, public ContextResource
    {
       public:
-         void init();
+         Framebuffer() { ContextListener::init(); }
+         ~Framebuffer() { deinit(); }
 
          void reset() override;
          void destroyed() override;

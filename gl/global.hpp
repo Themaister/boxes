@@ -61,8 +61,7 @@ namespace GL
    class ContextListener
    {
       public:
-         ContextListener();
-         ~ContextListener();
+         virtual ~ContextListener() {}
 
          virtual void reset() = 0;
          virtual void destroyed() = 0;
@@ -75,6 +74,8 @@ namespace GL
       protected:
          void register_dependency(ContextListener *listener);
          void unregister_dependency(ContextListener *listener);
+         void init();
+         void deinit();
 
       private:
          bool dead_manager = false;

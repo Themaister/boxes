@@ -11,6 +11,8 @@ namespace GL
    class Buffer : public ContextListener, public ContextResource
    {
       public:
+         Buffer() { ContextListener::init(); }
+         ~Buffer() { deinit(); }
          enum Flags
          {
             None = 0,

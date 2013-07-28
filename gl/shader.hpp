@@ -10,6 +10,9 @@ namespace GL
    class Shader : public ContextListener, public ContextResource
    {
       public:
+         Shader() { ContextListener::init(); }
+         ~Shader() { deinit(); }
+
          enum AttribLocations
          {
             VertexLocation = 0,
