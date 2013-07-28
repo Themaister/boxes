@@ -4,22 +4,25 @@
 
 using namespace std;
 using namespace Template;
+using namespace Log;
 
 namespace GL
 {
    ContextListener::ContextListener()
    {
-      ContextManager::get().register_listener(this);
+      if (!dead_manager)
+         ContextManager::get().register_listener(this);
    }
 
    ContextListener::~ContextListener()
    {
-      ContextManager::get().unregister_listener(this);
+      if (!dead_manager)
+         ContextManager::get().unregister_listener(this);
    }
 
    void ContextListener::register_dependency(ContextListener *listener)
    {
-      if (!listener)
+      if (!listener || dead_manager)
          return;
 
       ContextManager::get().register_dependency(this, listener);
@@ -27,7 +30,7 @@ namespace GL
 
    void ContextListener::unregister_dependency(ContextListener *listener)
    {
-      if (!listener)
+      if (!listener || dead_manager)
          return;
 
       ContextManager::get().unregister_dependency(this, listener);
@@ -41,6 +44,7 @@ namespace GL
          return *manager;
       else
       {
+         log("Creating context manager.");
          manager = unique_ptr<ContextManager>(new ContextManager);
          return *manager;
       }
@@ -198,6 +202,14 @@ namespace GL
 #endif
          listener->destroyed();
       }
+   }
+
+   ContextManager::~ContextManager()
+   {
+      for (auto& listener : listeners)
+         listener->listener->set_dead_manager();
+
+      log("Context manager tearing down!");
    }
 }
 

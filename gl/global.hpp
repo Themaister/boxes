@@ -57,7 +57,7 @@ namespace GL
          virtual void load() {}
          virtual void unload() {}
          virtual void viewport_changed(const Resolution& res) = 0;
-         virtual void run(float delta, const InputState& input, GLuint fb) = 0;
+         virtual void run(float delta, const InputState& input) = 0;
 
       protected:
          std::string libretro_dir;
@@ -82,15 +82,21 @@ namespace GL
          bool operator==(const ContextListener& other) const { return this == &other; }
          bool operator!=(const ContextListener& other) const { return this != &other; }
 
+         void set_dead_manager() { dead_manager = true; }
+
       protected:
          void register_dependency(ContextListener *listener);
          void unregister_dependency(ContextListener *listener);
+
+      private:
+         bool dead_manager = false;
    };
 
    class ContextManager
    {
       public:
          static ContextManager& get();
+         ~ContextManager();
 
          void register_listener(ContextListener *listener);
          void unregister_listener(const ContextListener *listener);

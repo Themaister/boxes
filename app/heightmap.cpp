@@ -96,8 +96,8 @@ class HeightmapApp : public LibretroGLApplication
       vector<Resolution> get_resolutions() const override
       {
          vector<Resolution> res;
-         res.push_back({320, 240});
-         res.push_back({640, 480});
+         res.push_back({320, 180});
+         res.push_back({640, 360});
          res.push_back({1280, 720});
          res.push_back({1920, 1080});
          return res;
@@ -167,7 +167,7 @@ class HeightmapApp : public LibretroGLApplication
          update_global_data();
       }
 
-      void run(float delta, const InputState& input, GLuint) override
+      void run(float delta, const InputState& input) override
       {
          auto analog = input.analog;
          if (fabsf(analog.x) < 0.3f)

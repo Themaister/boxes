@@ -6,6 +6,8 @@
 
 namespace GL
 {
+   class Framebuffer;
+
    class Sampler : public ContextListener, public ContextResource
    {
       public:
@@ -50,11 +52,15 @@ namespace GL
             TextureCube
          };
 
-         struct Desc2D
+         struct Desc
          {
             Type type;
             unsigned levels;
             GLenum internal_format;
+         };
+
+         struct Desc2D : Desc
+         {
             unsigned width;
             unsigned height;
             unsigned array_size;
@@ -78,7 +84,8 @@ namespace GL
          void reset() override;
          void destroyed() override;
 
-         GLenum get_target() const { return texture_type; }
+         const Desc& get_desc() const { return desc; }
+         friend class Framebuffer;
 
       private:
          GLuint id = 0;

@@ -1,6 +1,7 @@
 #include "libretro.h"
 #include "util.hpp"
 #include <gl/global.hpp>
+#include <gl/framebuffer.hpp>
 #include <cstring>
 
 using namespace std;
@@ -13,11 +14,28 @@ static string libretro_dir;
 static unique_ptr<LibretroGLApplication> app;
 static LibretroGLApplication::InputState last_input_state;
 
+static Framebuffer ms_fbo;
+static Renderbuffer ms_color;
+static Renderbuffer ms_depth_stencil;
+static unsigned multisample;
+
 static unsigned width;
 static unsigned height;
 
 static bool use_frame_time_cb;
 static float frame_delta;
+
+static void init_multisample(unsigned samples, unsigned width, unsigned height)
+{
+   if (samples <= 1)
+      samples = 0;
+
+   Framebuffer::set_back_buffer(0);
+   ms_color.init(GL_RGBA8, width, height, samples);
+   ms_depth_stencil.init(GL_DEPTH24_STENCIL8, width, height, samples);
+   ms_fbo.set_attachments({}, {{ &ms_color }, { &ms_depth_stencil }});
+   multisample = samples;
+}
 
 void retro_init(void)
 {
@@ -91,8 +109,10 @@ void retro_set_video_refresh(retro_video_refresh_t cb)
 
 static void update_variables()
 {
-   retro_variable var = {0};
-   var.key = "heightmap_resolution";
+   auto name = app->get_application_name_short();
+   name += "_resolution";
+   retro_variable var = {};
+   var.key = name.c_str();
 
    if (!environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) || !var.value)
       return;
@@ -106,6 +126,19 @@ static void update_variables()
    log("Internal resolution: %u x %u.", width, height);
 
    app->viewport_changed({width, height});
+
+   name = app->get_application_name_short();
+   name += "_multisample";
+   var = {};
+   var.key = name.c_str();
+
+   if (!environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) || !var.value)
+      return;
+
+   unsigned ms = *var.value - '0';
+   init_multisample(ms, width, height);
+
+   log("Multisample: %ux.", ms);
 }
 
 static void frame_time_cb(retro_usec_t usec)
@@ -120,7 +153,11 @@ void retro_run(void)
       update_variables();
 
    GLuint fb = hw_render.get_current_framebuffer();
-   glBindFramebuffer(GL_FRAMEBUFFER, fb);
+   if (multisample)
+      Framebuffer::set_back_buffer(ms_fbo);
+   else
+      Framebuffer::set_back_buffer(fb);
+   Framebuffer::unbind();
 
    LibretroGLApplication::InputState state{};
 
@@ -172,7 +209,14 @@ void retro_run(void)
    if (!use_frame_time_cb)
       frame_delta = 1.0f / 60.0f;
 
-   app->run(frame_delta, state, fb);
+   app->run(frame_delta, state);
+
+   if (multisample)
+   {
+      ms_fbo.blit(fb, width, height, GL_COLOR_BUFFER_BIT);
+      //ms_fbo.invalidate();
+   }
+
    video_cb(RETRO_HW_FRAME_BUFFER_VALID, width, height, 0);
 }
 
@@ -198,6 +242,7 @@ static void context_reset(void)
       std::cerr << "[OpenGL debug]: Using ARB_debug_output." << std::endl;
       glDebugMessageCallbackARB(debug_cb, nullptr);
       glDebugMessageControlARB(GL_DONT_CARE, GL_DONT_CARE, GL_DONT_CARE, 0, nullptr, GL_TRUE);
+      glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS_ARB);
    }
 #endif
 
@@ -214,6 +259,7 @@ bool retro_load_game(const struct retro_game_info *info)
    last_input_state = LibretroGLApplication::InputState{};
 
    auto name = app->get_application_name_short();
+   auto ms_name = name + "_multisample";
    name += "_resolution";
 
    string res = "Internal resolution; ";
@@ -224,6 +270,7 @@ bool retro_load_game(const struct retro_game_info *info)
 
    retro_variable variables[] = {
       { name.c_str(), res.c_str() },
+      { ms_name.c_str(), "Multisample; 1x|2x|4x" },
       { nullptr, nullptr },
    };
 
