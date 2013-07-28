@@ -220,8 +220,8 @@ namespace GL
 
    void Shader::init(const string& path_vs, const string& path_fs)
    {
-      source_vs = File::read_string(path_vs);
-      source_fs = File::read_string(path_fs);
+      source_vs = File::read_string(asset_path(path_vs));
+      source_fs = File::read_string(asset_path(path_fs));
 
       if (alive)
          for (auto& prog : progs)

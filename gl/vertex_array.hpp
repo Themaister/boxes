@@ -17,6 +17,7 @@ namespace GL
             GLboolean normalized;
             GLsizei stride;
             GLsizei offset;
+            GLuint divisor;
          };
 
          void reset() override;

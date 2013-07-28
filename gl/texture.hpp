@@ -52,15 +52,11 @@ namespace GL
             TextureCube
          };
 
-         struct Desc
+         struct Desc2D
          {
             Type type;
             unsigned levels;
             GLenum internal_format;
-         };
-
-         struct Desc2D : Desc
-         {
             unsigned width;
             unsigned height;
             unsigned array_size;
@@ -84,7 +80,7 @@ namespace GL
          void reset() override;
          void destroyed() override;
 
-         const Desc& get_desc() const { return desc; }
+         const Desc2D& get_desc() const { return desc; }
          friend class Framebuffer;
 
       private:

@@ -198,7 +198,9 @@ namespace GL
          uint32_t *raw_data = nullptr;
          unsigned width = 0;
          unsigned height = 0;
-         if (!rpng_load_image_argb(path.c_str(), &raw_data, &width, &height))
+
+         auto apath = asset_path(path);
+         if (!rpng_load_image_argb(apath.c_str(), &raw_data, &width, &height))
             throw std::runtime_error(String::cat("Failed to load texture: ", path.c_str()));
 
          if ((desc.width && width != desc.width) || (desc.height && height != desc.height))

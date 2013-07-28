@@ -16,6 +16,7 @@ namespace GL
          glVertexAttribPointer(array.location, array.size, array.type,
                array.normalized, array.stride, reinterpret_cast<void*>(array.offset));
          glEnableVertexAttribArray(array.location);
+         glVertexAttribDivisor(array.location, array.divisor);
       }
 
       unbind();

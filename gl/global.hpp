@@ -52,22 +52,10 @@ namespace GL
          virtual std::string get_application_name_short() const = 0;
          virtual std::vector<Resolution> get_resolutions() const = 0;
 
-         inline void set_dir(const std::string& dir) { libretro_dir = dir; }
-
          virtual void load() {}
          virtual void unload() {}
          virtual void viewport_changed(const Resolution& res) = 0;
          virtual void run(float delta, const InputState& input) = 0;
-
-      protected:
-         std::string libretro_dir;
-         inline std::string path(const std::string& p)
-         {
-            if (libretro_dir.empty())
-               throw std::logic_error("Loading assets too early!\n");
-
-            return Path::join(libretro_dir, p);
-         }
    };
 
    class ContextListener
@@ -106,6 +94,15 @@ namespace GL
          void register_dependency(ContextListener *master, ContextListener *slave);
          void unregister_dependency(ContextListener *master, ContextListener *slave);
 
+         void set_dir(const std::string& dir) { libretro_dir = dir; }
+         inline std::string path(const std::string& p)
+         {
+            if (libretro_dir.empty())
+               throw std::logic_error("Loading assets too early!\n");
+
+            return Path::join(libretro_dir, p);
+         }
+
       private:
          ContextManager() {}
 
@@ -130,7 +127,14 @@ namespace GL
          bool alive = false;
 
          uint64_t context_id = 0;
+
+         std::string libretro_dir;
    };
+
+   inline std::string asset_path(const std::string& path)
+   {
+      return ContextManager::get().path(path);
+   }
 
    // Non-copyable, non-movable stubs.
    class ContextResource

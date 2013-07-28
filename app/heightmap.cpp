@@ -4,6 +4,7 @@
 #include <gl/vertex_array.hpp>
 #include <gl/texture.hpp>
 #include <gl/mesh.hpp>
+#include <gl/framebuffer.hpp>
 #include <memory>
 #include <cstdint>
 
@@ -11,53 +12,126 @@ using namespace std;
 using namespace glm;
 using namespace GL;
 
-class Scene 
+class Scene : public ContextListener
 {
    public:
-      void init(const std::string& path)
+      void init()
       {
-         auto meshes = load_scene(path);
-
-         for (auto& mesh : meshes)
-         {
-            auto drawable = Util::make_unique<Drawable>();
-            drawable->vertex.init(GL_ARRAY_BUFFER, mesh.vbo, Buffer::None);
-            drawable->elems.init(GL_ELEMENT_ARRAY_BUFFER, mesh.ibo, Buffer::None);
-            drawable->array.setup(mesh.arrays, &drawable->vertex,
-                  &drawable->elems);
-            drawable->indices = mesh.ibo.size();
-            drawables.push_back(move(drawable));
-
-         }
-
-         mat4 model = translate(mat4(1.0), vec3(0, -5, -50));
+         mat4 model = translate(mat4(1.0), vec3(-100, -10, -100));
          uniform_offset.init(GL_UNIFORM_BUFFER, sizeof(model),
                Buffer::None, value_ptr(model), 2);
+
+         int size = 200;
+         vector<GLushort> vertices;
+         for (int y = 0; y < size; y++)
+         {
+            for (int x = 0; x < size; x++)
+            {
+               vertices.push_back(x);
+               vertices.push_back(y);
+            }
+         }
+
+         vector<GLuint> elements;
+
+         int pos = 0;
+         for (int y = 0; y < size - 1; y++)
+         {
+            int step = (y & 1) ? -1 : 1;
+            for (int x = 0; x < 2 * size - 1; x++)
+            {
+               elements.push_back(pos);
+               pos += (x & 1) ? (-size + step) : size;
+            }
+            elements.push_back(pos);
+            elements.push_back(pos);
+         }
+
+         vertex.init(GL_ARRAY_BUFFER, vertices, Buffer::None);
+         elems.init(GL_ELEMENT_ARRAY_BUFFER, elements, Buffer::None);
+         array.setup({{ Shader::VertexLocation, 2, GL_UNSIGNED_SHORT, GL_FALSE }}, &vertex, &elems);
+         indices = elements.size();
+
+         heightmap.load_texture_2d({ Texture::Texture2D,
+               { "heightmap.png" }, false });
+
+         heightmap_sampler.init(Sampler::PointClamp);
+
+         shader.init("test.vs", "test.fs");
+         shader.set_samplers({{ "heightmap", 0 }, { "normalmap", 1 }});
+         shader.set_uniform_buffers({{ "ModelTransform", 2 }});
+
+         register_dependency(&heightmap);
+         register_dependency(&heightmap_normal);
+         Texture::Desc2D desc{ Texture::Texture2D, 1, GL_RG8, unsigned(size), unsigned(size), 1 };
+         heightmap_normal.init_2d(desc);
       }
+
+      void reset() override
+      {
+         Framebuffer fb;
+         fb.set_attachments({{ &heightmap_normal }}, {});
+
+         Framebuffer::push();
+         fb.bind();
+
+         glViewport(0, 0, 200, 200);
+
+         vector<GLshort> verts{ -1, -1, 1, -1, -1, 1, 1, 1 };
+         Buffer vert;
+         vert.init(GL_ARRAY_BUFFER, verts, Buffer::None);
+
+         VertexArray arrays;
+         arrays.setup({{ Shader::VertexLocation, 2, GL_SHORT, GL_FALSE }}, &vert, nullptr);
+
+         Shader shader;
+         shader.set_samplers({{ "heightmap", 0 }});
+         shader.init("normalgen.vs", "normalgen.fs");
+
+         shader.use();
+         arrays.bind();
+         glDisable(GL_DEPTH_TEST);
+         glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+         arrays.unbind();
+         shader.unbind();
+
+         Framebuffer::pop();
+      }
+
+      void destroyed() override
+      {}
 
       void render()
       {
+         heightmap.bind(0);
+         heightmap_normal.bind(1);
+         heightmap_sampler.bind(0);
+         heightmap_sampler.bind(1);
+
          uniform_offset.bind();
-         for (auto& drawable : drawables)
-         {
-            drawable->array.bind();
-            glDrawElements(GL_TRIANGLES, drawable->indices,
-                  GL_UNSIGNED_INT, nullptr);
-            drawable->array.unbind();
-         }
+         array.bind();
+         glDrawElements(GL_TRIANGLE_STRIP, indices,
+               GL_UNSIGNED_INT, nullptr);
+         array.unbind();
          uniform_offset.unbind();
+
+         heightmap.unbind(0);
+         heightmap_normal.unbind(1);
+         heightmap_sampler.unbind(0);
+         heightmap_sampler.unbind(1);
       }
 
    private:
-      struct Drawable
-      {
-         VertexArray array;
-         Buffer vertex;
-         Buffer elems;
-         size_t indices;
-      };
+      Shader shader;
+      VertexArray array;
+      Buffer vertex;
+      Buffer elems;
+      unsigned indices;
       Buffer uniform_offset;
-      vector<unique_ptr<Drawable>> drawables;
+
+      Texture heightmap;
+      Texture heightmap_normal;
+      Sampler heightmap_sampler;
 };
 
 class HeightmapApp : public LibretroGLApplication
@@ -118,7 +192,7 @@ class HeightmapApp : public LibretroGLApplication
          global.camera_pos = vec4(player_pos.x, player_pos.y, player_pos.z, 0.0);
 
          global_fragment.camera_pos = global.camera_pos;
-         global_fragment.light_pos = vec4(100.0, 100.0, 100.0, 1.0);
+         global_fragment.light_pos = vec4(1000.0, 400.0, 1000.0, 1.0);
          global_fragment.light_color = vec4(1.0);
          global_fragment.light_ambient = vec4(0.25);
 
@@ -191,13 +265,10 @@ class HeightmapApp : public LibretroGLApplication
          global_buffer.bind();
          global_fragment_buffer.bind();
 
+         scene.render();
+
          skybox.tex.bind(0);
          skybox.sampler.bind(0);
-
-         shader.use();
-         scene.render();
-         shader.unbind();
-
          skybox.shader.use();
          skybox.arrays.bind();
          glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
@@ -227,20 +298,18 @@ class HeightmapApp : public LibretroGLApplication
          player_view_deg_x = 0.0f;
          player_view_deg_y = 0.0f;
 
-         shader.init(path("test.vs"), path("test.fs"));
-         shader.set_samplers({{ "skybox", 0 }});
-         shader.set_uniform_buffers({{ "ModelTransform", 2 }});
-         scene.init(path("test.obj"));
+         scene.init();
+
          skybox.tex.load_texture_2d({Texture::TextureCube, {
-                  path("app/xpos.png"),
-                  path("app/xneg.png"),
-                  path("app/ypos.png"),
-                  path("app/yneg.png"),
-                  path("app/zpos.png"),
-                  path("app/zneg.png"),
+                  "app/xpos.png",
+                  "app/xneg.png",
+                  "app/ypos.png",
+                  "app/yneg.png",
+                  "app/zpos.png",
+                  "app/zneg.png",
                }, true});
          skybox.sampler.init(Sampler::TrilinearClamp);
-         skybox.shader.init(path("skybox.vs"), path("skybox.fs"));
+         skybox.shader.init("skybox.vs", "skybox.fs");
          skybox.shader.set_samplers({{ "skybox", 0 }});
          skybox.shader.set_uniform_buffers({{ "ModelTransform", 2 }});
          vector<int8_t> vertices = { -1, -1, 1, -1, -1, 1, 1, 1 };
@@ -283,7 +352,6 @@ class HeightmapApp : public LibretroGLApplication
       Buffer global_buffer;
       Buffer global_fragment_buffer;
 
-      Shader shader;
       Scene scene;
 
       struct

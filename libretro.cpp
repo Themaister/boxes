@@ -309,7 +309,7 @@ bool retro_load_game(const struct retro_game_info *info)
       return false;
    }
 
-   app->set_dir(Path::basedir(libretro));
+   ContextManager::get().set_dir(Path::basedir(libretro));
    log("Loaded from dir: %s.", libretro);
 
    app->load();
