@@ -16,6 +16,7 @@ void main()
    vec3 vLight = normalize(light_pos.xyz - vWorldPos);
    vec3 normal = normalize(vNormal);
 
+#if 1
    float ndotl = max(dot(vLight, normal), 0.0);
    float spec = 0.0;
    if (ndotl > 0.0)
@@ -27,5 +28,9 @@ void main()
    vec3 mat_color = vec3(1.1, 0.8, 0.7);
    vec3 col = (light_ambient.rgb + ndotl) * mat_color + light_color.rgb * spec * 0.1;
    FragColor = vec4(col, 1.0);
+#else
+   normal.y = -1.0;
+   FragColor = vec4(normal * 0.5 + 0.5, 1.0);
+#endif
 }
 

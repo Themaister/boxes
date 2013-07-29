@@ -15,12 +15,19 @@ using namespace GL;
 class Scene : public ContextListener
 {
    public:
-      Scene() { ContextListener::init(); }
+      Scene()
+      {
+         register_dependency(&heightmap);
+         register_dependency(&heightmap_sampler);
+         register_dependency(&heightmap_normal);
+         ContextListener::init();
+      }
+
       ~Scene() { deinit(); }
 
       void init()
       {
-         mat4 model = translate(mat4(1.0), vec3(-100, -10, -100));
+         mat4 model = translate(scale(mat4(1.0), vec3(0.5)), vec3(-100, -10, -100));
          uniform_offset.init(GL_UNIFORM_BUFFER, sizeof(model),
                Buffer::None, value_ptr(model), 2);
 
@@ -64,18 +71,16 @@ class Scene : public ContextListener
          shader.set_samplers({{ "heightmap", 0 }, { "normalmap", 1 }});
          shader.set_uniform_buffers({{ "ModelTransform", 2 }});
 
-         register_dependency(&heightmap);
-         register_dependency(&heightmap_normal);
          Texture::Desc2D desc{ Texture::Texture2D, 1, GL_RG8, unsigned(size), unsigned(size), 1 };
          heightmap_normal.init_2d(desc);
       }
 
       void reset() override
       {
+         Framebuffer::push();
+
          Framebuffer fb;
          fb.set_attachments({{ &heightmap_normal }}, {});
-
-         Framebuffer::push();
          fb.bind();
 
          glViewport(0, 0, 200, 200);
@@ -88,8 +93,11 @@ class Scene : public ContextListener
          arrays.setup({{ Shader::VertexLocation, 2, GL_SHORT, GL_FALSE }}, &vert, nullptr);
 
          Shader shader;
-         shader.set_samplers({{ "heightmap", 0 }});
          shader.init("normalgen.vs", "normalgen.fs");
+         shader.set_samplers({{ "heightmap", 0 }});
+
+         heightmap.bind(0);
+         heightmap_sampler.bind(0);
 
          shader.use();
          arrays.bind();
@@ -97,6 +105,9 @@ class Scene : public ContextListener
          glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
          arrays.unbind();
          shader.unbind();
+
+         heightmap.unbind(0);
+         heightmap_sampler.unbind(0);
 
          Framebuffer::pop();
       }
@@ -111,6 +122,8 @@ class Scene : public ContextListener
          heightmap_sampler.bind(0);
          heightmap_sampler.bind(1);
 
+         shader.use();
+
          uniform_offset.bind();
          array.bind();
          glDrawElements(GL_TRIANGLE_STRIP, indices,
@@ -122,6 +135,8 @@ class Scene : public ContextListener
          heightmap_normal.unbind(1);
          heightmap_sampler.unbind(0);
          heightmap_sampler.unbind(1);
+
+         shader.unbind();
       }
 
    private:
@@ -182,7 +197,7 @@ class HeightmapApp : public LibretroGLApplication
 
       void update_global_data()
       {
-         global.proj = perspective(45.0f, float(width) / float(height), 0.1f, 500.0f);
+         global.proj = perspective(45.0f, float(width) / float(height), 0.1f, 1000.0f);
          global.inv_proj = inverse(global.proj);
          global.view = lookAt(player_pos, player_pos + player_look_dir, vec3(0, 1, 0));
          global.view_nt = lookAt(vec3(0.0f), player_look_dir, vec3(0, 1, 0));

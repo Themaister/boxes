@@ -57,6 +57,13 @@ namespace GL
          static_cast<void*>(listener) << endl;
 #endif
 
+      auto pred = [listener](const shared_ptr<ListenerState>& state) {
+         return state->listener == listener;
+      };
+
+      if (find_if(begin(listeners), end(listeners), pred) != end(listeners))
+         return;
+
       auto state = make_shared<ListenerState>();
       state->listener = listener;
       state->id = context_id++;
@@ -69,6 +76,8 @@ namespace GL
    {
       if (!master || !slave)
          return;
+
+      register_listener(master);
 
 #ifdef GL_DEBUG
       cerr << "Registering dependency: " <<

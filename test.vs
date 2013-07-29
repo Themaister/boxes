@@ -26,11 +26,11 @@ uniform sampler2D normalmap;
 
 void main()
 {
-   float y = 40.0;
-   float height = texelFetch(heightmap, ivec2(aVertex.x, aVertex.y), 0).r * y;
+   float y = 15.0;
+   float height = texelFetch(heightmap, ivec2(aVertex), 0).r * y;
 
-   vec2 normal = texelFetch(normalmap, ivec2(aVertex.x, aVertex.y), 0).rg * y;
-   vNormal = normalize(vec3(-normal.x, 2.0, -normal.y));
+   vec2 normal = (texelFetch(normalmap, ivec2(aVertex), 0).rg - 0.5) * 2.0 * y;
+   vNormal = normalize(vec3(-normal.x, 1.0, -normal.y));
 
    vec4 world = model * vec4(aVertex.x, height, aVertex.y, 1.0);
    gl_Position = vp * world;
