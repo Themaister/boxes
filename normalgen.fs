@@ -5,8 +5,9 @@ out vec4 FragColor;
 
 void main()
 {
-   ivec2 coord = ivec2(vCoord);
+   ivec2 coord = ivec2(floor(vCoord));
    ivec3 offset = ivec3(0, -1, 1);
+   float h = texelFetch(heightmap, coord, 0).r;
    float h0 = texelFetch(heightmap, coord + offset.yx, 0).r;
    float h1 = texelFetch(heightmap, coord + offset.zx, 0).r;
    float h2 = texelFetch(heightmap, coord + offset.xy, 0).r;
@@ -14,6 +15,6 @@ void main()
 
    float dx = h1 - h0;
    float dz = h3 - h2;
-   FragColor = vec4(vec2(dx, dz) * 0.5 + 0.5, h0, 0.0);
+   FragColor = vec4(vec2(dx, dz) * 0.5 + 0.5, h, 0.0);
 }
 

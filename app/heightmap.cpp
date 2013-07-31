@@ -17,7 +17,6 @@ class Scene : public ContextListener
    public:
       Scene()
       {
-         register_dependency(&heightmap);
          register_dependency(&heightmap_sampler);
          register_dependency(&heightmap_normal);
          ContextListener::init();
@@ -27,12 +26,12 @@ class Scene : public ContextListener
 
       void init()
       {
-         mat4 model = translate(scale(mat4(1.0), vec3(0.5)), vec3(-100, -10, -100));
+         mat4 model = translate(mat4(1.0), vec3(-100, -10, -100));
          uniform_offset.init(GL_UNIFORM_BUFFER, sizeof(model),
                Buffer::None, value_ptr(model), 2);
 
          int size = 200;
-         vector<GLushort> vertices;
+         vector<GLubyte> vertices;
          for (int y = 0; y < size; y++)
          {
             for (int x = 0; x < size; x++)
@@ -59,26 +58,17 @@ class Scene : public ContextListener
 
          vertex.init(GL_ARRAY_BUFFER, vertices, Buffer::None);
          elems.init(GL_ELEMENT_ARRAY_BUFFER, elements, Buffer::None);
-         array.setup({{ Shader::VertexLocation, 2, GL_UNSIGNED_SHORT, GL_FALSE }}, &vertex, &elems);
+         array.setup({{ Shader::VertexLocation, 2, GL_UNSIGNED_BYTE, GL_FALSE }}, &vertex, &elems);
          indices = elements.size();
-
-         heightmap.load_texture_2d({ Texture::Texture2D,
-               { "heightmap.png" }, false });
 
          heightmap_sampler.init(Sampler::PointClamp);
 
          shader.init("test.vs", "test.fs");
-         shader.reserve_define("HEIGHTMAP", 1);
-         shader.set_samplers({{ "heightmap", 0 }, { "normalmap", 1 }});
+         shader.set_samplers({{ "normalmap", 0 }});
          shader.set_uniform_buffers({{ "ModelTransform", 2 }});
 
-         Texture::Desc2D desc{ Texture::Texture2D, 1, GL_RGBA8, unsigned(size), unsigned(size), 1 };
+         Texture::Desc2D desc{ Texture::Texture2D, 1, GL_RGB10_A2, unsigned(size), unsigned(size), 1 };
          heightmap_normal.init_2d(desc);
-      }
-
-      void set_heightmap(bool val)
-      {
-         shader.set_define("HEIGHTMAP", val);
       }
 
       void reset() override
@@ -92,17 +82,20 @@ class Scene : public ContextListener
          glViewport(0, 0, 200, 200);
          glClear(GL_COLOR_BUFFER_BIT);
 
-         vector<GLshort> verts{ -1, -1, 1, -1, -1, 1, 1, 1 };
+         vector<GLbyte> verts{ -1, -1, 1, -1, -1, 1, 1, 1 };
          Buffer vert;
          vert.init(GL_ARRAY_BUFFER, verts, Buffer::None);
 
          VertexArray arrays;
-         arrays.setup({{ Shader::VertexLocation, 2, GL_SHORT, GL_FALSE }}, &vert, nullptr);
+         arrays.setup({{ Shader::VertexLocation, 2, GL_BYTE, GL_FALSE }}, &vert, nullptr);
 
          Shader shader;
          shader.set_samplers({{ "heightmap", 0 }});
          shader.init("normalgen.vs", "normalgen.fs");
 
+         Texture heightmap;
+         heightmap.load_texture_2d({ Texture::Texture2D,
+               { "heightmap.png" }, false });
          heightmap.bind(0);
          heightmap_sampler.bind(0);
 
@@ -124,10 +117,8 @@ class Scene : public ContextListener
 
       void render()
       {
-         heightmap.bind(0);
-         heightmap_normal.bind(1);
+         heightmap_normal.bind(0);
          heightmap_sampler.bind(0);
-         heightmap_sampler.bind(1);
 
          shader.use();
 
@@ -138,10 +129,8 @@ class Scene : public ContextListener
          array.unbind();
          uniform_offset.unbind();
 
-         heightmap.unbind(0);
-         heightmap_normal.unbind(1);
+         heightmap_normal.unbind(0);
          heightmap_sampler.unbind(0);
-         heightmap_sampler.unbind(1);
 
          shader.unbind();
       }
@@ -154,7 +143,6 @@ class Scene : public ContextListener
       unsigned indices = 0;
       Buffer uniform_offset;
 
-      Texture heightmap;
       Texture heightmap_normal;
       Sampler heightmap_sampler;
 };
@@ -279,12 +267,6 @@ class HeightmapApp : public LibretroGLApplication
             analog.ry = 0.0f;
          update_input(delta, analog, input.pressed);
 
-         if (input.triggered.a)
-         {
-            use_heightmap = !use_heightmap;
-            scene.set_heightmap(use_heightmap);
-         }
-
          glViewport(0, 0, width, height);
          glClearColor(0.3f, 0.3f, 0.3f, 1.0f);
          glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
@@ -384,7 +366,6 @@ class HeightmapApp : public LibretroGLApplication
       Buffer global_fragment_buffer;
 
       Scene scene;
-      bool use_heightmap = false;
 
       struct
       {
