@@ -40,6 +40,6 @@ void main()
    vec4 world = model * vec4(aVertex.x, height, aVertex.y, 1.0);
    gl_Position = vp * world;
    vWorldPos = world.xyz;
-   vColor = vec4(0.5 * height + 0.25);
+   vColor = vec4(0.25 * height + 0.25);
 }
 

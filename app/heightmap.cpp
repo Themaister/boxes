@@ -26,12 +26,12 @@ class Scene : public ContextListener
 
       void init()
       {
-         mat4 model = translate(mat4(1.0), vec3(-100, -10, -100));
+         mat4 model = translate(mat4(1.0), vec3(-512, -10, -512));
          uniform_offset.init(GL_UNIFORM_BUFFER, sizeof(model),
                Buffer::None, value_ptr(model), 2);
 
-         int size = 200;
-         vector<GLubyte> vertices;
+         int size = 1024;
+         vector<GLushort> vertices;
          for (int y = 0; y < size; y++)
          {
             for (int x = 0; x < size; x++)
@@ -58,7 +58,7 @@ class Scene : public ContextListener
 
          vertex.init(GL_ARRAY_BUFFER, vertices, Buffer::None);
          elems.init(GL_ELEMENT_ARRAY_BUFFER, elements, Buffer::None);
-         array.setup({{ Shader::VertexLocation, 2, GL_UNSIGNED_BYTE, GL_FALSE }}, &vertex, &elems);
+         array.setup({{ Shader::VertexLocation, 2, GL_UNSIGNED_SHORT, GL_FALSE }}, &vertex, &elems);
          indices = elements.size();
 
          heightmap_sampler.init(Sampler::PointClamp);
@@ -79,7 +79,7 @@ class Scene : public ContextListener
          fb.set_attachments({{ &heightmap_normal }}, {});
          fb.bind();
 
-         glViewport(0, 0, 200, 200);
+         glViewport(0, 0, 1024, 1024);
          glClear(GL_COLOR_BUFFER_BIT);
 
          vector<GLbyte> verts{ -1, -1, 1, -1, -1, 1, 1, 1 };
