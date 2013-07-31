@@ -56,7 +56,7 @@ namespace GL
 #ifdef HAVE_OPENGLES3
          "#version 300 es\nlayout(std140) uniform;\n",
 #else
-         "#version 140\nlayout(std140) uniform;\n",
+         "#version 330\nlayout(std140) uniform;\n",
 #endif
       };
       for (auto& define : defines)
@@ -137,6 +137,12 @@ namespace GL
       GLuint frag = glCreateShader(GL_FRAGMENT_SHADER);
 
       auto defines = current_defines();
+
+#ifdef GL_DEBUG
+      log("Compiling shader with defines:");
+      for (auto& define : defines)
+         log("\t%s", define.c_str());
+#endif
 
       compile_shader(vert, source_vs, defines);
 #ifdef HAVE_OPENGLES3

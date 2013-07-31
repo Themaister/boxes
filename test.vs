@@ -18,8 +18,12 @@ uniform ModelTransform
 
 in vec2 aVertex;
 
-out vec3 vWorldPos;
-out vec3 vNormal;
+out VertexData
+{
+   vec3 vWorldPos;
+   vec3 vNormal;
+   vec4 vColor;
+};
 
 uniform sampler2D heightmap;
 uniform sampler2D normalmap;
@@ -27,13 +31,21 @@ uniform sampler2D normalmap;
 void main()
 {
    float y = 15.0;
-   float height = texelFetch(heightmap, ivec2(aVertex), 0).r * y;
 
-   vec2 normal = (texelFetch(normalmap, ivec2(aVertex), 0).rg - 0.5) * 2.0 * y;
+   vec4 val = texelFetch(normalmap, ivec2(aVertex), 0);
+
+#if HEIGHTMAP
+   float height = texelFetch(heightmap, ivec2(aVertex), 0).r * y;
+#else
+   float height = val.z * y;
+#endif
+
+   vec2 normal = (val.xy - 0.5) * 2.0 * y;
    vNormal = normalize(vec3(-normal.x, 1.0, -normal.y));
 
    vec4 world = model * vec4(aVertex.x, height, aVertex.y, 1.0);
    gl_Position = vp * world;
    vWorldPos = world.xyz;
+   vColor = vec4(1.0);
 }
 

@@ -14,6 +14,6 @@ void main()
 
    float dx = h1 - h0;
    float dz = h3 - h2;
-   FragColor = vec4(dx * 0.5 + 0.5, dz * 0.5 + 0.5, 0.0, 0.0);
+   FragColor = vec4(vec2(dx, dz) * 0.5 + 0.5, h0, 0.0);
 }
 

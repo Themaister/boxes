@@ -68,11 +68,17 @@ class Scene : public ContextListener
          heightmap_sampler.init(Sampler::PointClamp);
 
          shader.init("test.vs", "test.fs");
+         shader.reserve_define("HEIGHTMAP", 1);
          shader.set_samplers({{ "heightmap", 0 }, { "normalmap", 1 }});
          shader.set_uniform_buffers({{ "ModelTransform", 2 }});
 
-         Texture::Desc2D desc{ Texture::Texture2D, 1, GL_RG8, unsigned(size), unsigned(size), 1 };
+         Texture::Desc2D desc{ Texture::Texture2D, 1, GL_RGBA8, unsigned(size), unsigned(size), 1 };
          heightmap_normal.init_2d(desc);
+      }
+
+      void set_heightmap(bool val)
+      {
+         shader.set_define("HEIGHTMAP", val);
       }
 
       void reset() override
@@ -84,6 +90,7 @@ class Scene : public ContextListener
          fb.bind();
 
          glViewport(0, 0, 200, 200);
+         glClear(GL_COLOR_BUFFER_BIT);
 
          vector<GLshort> verts{ -1, -1, 1, -1, -1, 1, 1, 1 };
          Buffer vert;
@@ -93,8 +100,8 @@ class Scene : public ContextListener
          arrays.setup({{ Shader::VertexLocation, 2, GL_SHORT, GL_FALSE }}, &vert, nullptr);
 
          Shader shader;
-         shader.init("normalgen.vs", "normalgen.fs");
          shader.set_samplers({{ "heightmap", 0 }});
+         shader.init("normalgen.vs", "normalgen.fs");
 
          heightmap.bind(0);
          heightmap_sampler.bind(0);
@@ -144,7 +151,7 @@ class Scene : public ContextListener
       VertexArray array;
       Buffer vertex;
       Buffer elems;
-      unsigned indices;
+      unsigned indices = 0;
       Buffer uniform_offset;
 
       Texture heightmap;
@@ -272,6 +279,12 @@ class HeightmapApp : public LibretroGLApplication
             analog.ry = 0.0f;
          update_input(delta, analog, input.pressed);
 
+         if (input.triggered.a)
+         {
+            use_heightmap = !use_heightmap;
+            scene.set_heightmap(use_heightmap);
+         }
+
          glViewport(0, 0, width, height);
          glClearColor(0.3f, 0.3f, 0.3f, 1.0f);
          glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
@@ -302,7 +315,7 @@ class HeightmapApp : public LibretroGLApplication
       void get_context_version(unsigned& major, unsigned& minor) const override
       {
          major = 3;
-         minor = 1;
+         minor = 3;
       }
 
       void load() override
@@ -371,6 +384,7 @@ class HeightmapApp : public LibretroGLApplication
       Buffer global_fragment_buffer;
 
       Scene scene;
+      bool use_heightmap = false;
 
       struct
       {
