@@ -214,7 +214,7 @@ void retro_run(void)
    if (multisample)
    {
       ms_fbo.blit(fb, width, height, GL_COLOR_BUFFER_BIT);
-      //ms_fbo.invalidate();
+      ms_fbo.invalidate();
    }
 
    video_cb(RETRO_HW_FRAME_BUFFER_VALID, width, height, 0);

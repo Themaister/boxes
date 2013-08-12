@@ -11,140 +11,93 @@
 using namespace std;
 using namespace glm;
 using namespace GL;
+using namespace Util;
 
-class Scene : public ContextListener
+class Scene
 {
    public:
-      Scene()
-      {
-         register_dependency(&heightmap_sampler);
-         register_dependency(&heightmap_normal);
-         ContextListener::init();
-      }
-
-      ~Scene() { deinit(); }
-
       void init()
       {
-         mat4 model = translate(mat4(1.0), vec3(-512, -10, -512));
-         uniform_offset.init(GL_UNIFORM_BUFFER, sizeof(model),
-               Buffer::None, value_ptr(model), 2);
-
-         int size = 1024;
-         vector<GLushort> vertices;
-         for (int y = 0; y < size; y++)
+         auto meshes = load_meshes_obj("maps/model.obj");
+         for (auto& mesh : meshes)
          {
-            for (int x = 0; x < size; x++)
+            auto draw = make_unique<Drawable>();
+            draw->arrays.setup(mesh.arrays, &draw->vert, &draw->elem);
+            draw->vert.init(GL_ARRAY_BUFFER, mesh.vbo, Buffer::None);
+            draw->elem.init(GL_ELEMENT_ARRAY_BUFFER, mesh.ibo, Buffer::None);
+            draw->indices = mesh.ibo.size();
+
+            mat4 model(1.0f);
+            draw->model.init(GL_UNIFORM_BUFFER, sizeof(mat4), Buffer::None, value_ptr(model), 2);
+
+            MaterialBuffer material(mesh.material);
+            draw->material.init(GL_UNIFORM_BUFFER, sizeof(material),
+                  Buffer::None, &material, 3);
+
+            if (!mesh.material.diffuse_map.empty())
             {
-               vertices.push_back(x);
-               vertices.push_back(y);
+               draw->use_diffuse = true;
+               draw->tex.load_texture_2d({Texture::Texture2D,
+                     { mesh.material.diffuse_map },
+                     true });
             }
+            else
+               draw->use_diffuse = false;
+
+            drawables.push_back(move(draw));
          }
 
-         vector<GLuint> elements;
+         sampler.init(Sampler::TrilinearClamp);
 
-         int pos = 0;
-         for (int y = 0; y < size - 1; y++)
-         {
-            int step = (y & 1) ? -1 : 1;
-            for (int x = 0; x < 2 * size - 1; x++)
-            {
-               elements.push_back(pos);
-               pos += (x & 1) ? (-size + step) : size;
-            }
-            elements.push_back(pos);
-            elements.push_back(pos);
-         }
-
-         vertex.init(GL_ARRAY_BUFFER, vertices, Buffer::None);
-         elems.init(GL_ELEMENT_ARRAY_BUFFER, elements, Buffer::None);
-         array.setup({{ Shader::VertexLocation, 2, GL_UNSIGNED_SHORT, GL_FALSE }}, &vertex, &elems);
-         indices = elements.size();
-
-         heightmap_sampler.init(Sampler::PointClamp);
-
+         shader.set_samplers({{ "Diffuse", 0 }});
+         shader.set_uniform_buffers({{ "ModelTransform", 2 }, { "Material", 3 }});
+         shader.reserve_define("DIFFUSE_MAP", 1);
          shader.init("test.vs", "test.fs");
-         shader.set_samplers({{ "normalmap", 0 }});
-         shader.set_uniform_buffers({{ "ModelTransform", 2 }});
-
-         Texture::Desc2D desc{ Texture::Texture2D, 1, GL_RGB10_A2, unsigned(size), unsigned(size), 1 };
-         heightmap_normal.init_2d(desc);
       }
-
-      void reset() override
-      {
-         Framebuffer::push();
-
-         Framebuffer fb;
-         fb.set_attachments({{ &heightmap_normal }}, {});
-         fb.bind();
-
-         glViewport(0, 0, 1024, 1024);
-         glClear(GL_COLOR_BUFFER_BIT);
-
-         vector<GLbyte> verts{ -1, -1, 1, -1, -1, 1, 1, 1 };
-         Buffer vert;
-         vert.init(GL_ARRAY_BUFFER, verts, Buffer::None);
-
-         VertexArray arrays;
-         arrays.setup({{ Shader::VertexLocation, 2, GL_BYTE, GL_FALSE }}, &vert, nullptr);
-
-         Shader shader;
-         shader.set_samplers({{ "heightmap", 0 }});
-         shader.init("normalgen.vs", "normalgen.fs");
-
-         Texture heightmap;
-         heightmap.load_texture_2d({ Texture::Texture2D,
-               { "heightmap.png" }, false });
-         heightmap.bind(0);
-         heightmap_sampler.bind(0);
-
-         shader.use();
-         arrays.bind();
-         glDisable(GL_DEPTH_TEST);
-         glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
-         arrays.unbind();
-         shader.unbind();
-
-         heightmap.unbind(0);
-         heightmap_sampler.unbind(0);
-
-         Framebuffer::pop();
-      }
-
-      void destroyed() override
-      {}
 
       void render()
       {
-         heightmap_normal.bind(0);
-         heightmap_sampler.bind(0);
-
+         sampler.bind(0);
          shader.use();
+         for (auto& draw : drawables)
+         {
+            draw->arrays.bind();
+            if (draw->use_diffuse)
+               draw->tex.bind(0);
+            draw->model.bind();
+            draw->material.bind();
 
-         uniform_offset.bind();
-         array.bind();
-         glDrawElements(GL_TRIANGLE_STRIP, indices,
-               GL_UNSIGNED_INT, nullptr);
-         array.unbind();
-         uniform_offset.unbind();
+            shader.set_define("DIFFUSE_MAP", draw->use_diffuse);
+            glDrawElements(GL_TRIANGLES, draw->indices, GL_UNSIGNED_INT, nullptr);
 
-         heightmap_normal.unbind(0);
-         heightmap_sampler.unbind(0);
-
+            draw->arrays.unbind();
+            draw->model.unbind();
+            draw->material.unbind();
+            if (draw->use_diffuse)
+               draw->tex.unbind(0);
+         }
+         sampler.unbind(0);
          shader.unbind();
       }
 
    private:
-      Shader shader;
-      VertexArray array;
-      Buffer vertex;
-      Buffer elems;
-      unsigned indices = 0;
-      Buffer uniform_offset;
+      struct Drawable
+      {
+         VertexArray arrays;
+         Buffer vert;
+         Buffer elem;
+         size_t indices;
 
-      Texture heightmap_normal;
-      Sampler heightmap_sampler;
+         Buffer model;
+         Buffer material;
+
+         Texture tex;
+         bool use_diffuse;
+      };
+
+      vector<unique_ptr<Drawable>> drawables;
+      Shader shader;
+      Sampler sampler;
 };
 
 class HeightmapApp : public LibretroGLApplication
@@ -205,9 +158,9 @@ class HeightmapApp : public LibretroGLApplication
          global.camera_pos = vec4(player_pos.x, player_pos.y, player_pos.z, 0.0);
 
          global_fragment.camera_pos = global.camera_pos;
-         global_fragment.light_pos = vec4(1000.0, 400.0, 1000.0, 1.0);
+         global_fragment.light_pos = vec4(0.0, 5.0, 0.0, 1.0);
          global_fragment.light_color = vec4(1.0);
-         global_fragment.light_ambient = vec4(0.25);
+         global_fragment.light_ambient = vec4(0.15);
 
          GlobalTransforms *buf;
          if (global_buffer.map(buf))

@@ -58,6 +58,9 @@ namespace GL
 #else
          "#version 330\nlayout(std140) uniform;\n",
 #endif
+         "#define VERTEX 0\n",
+         "#define TEXCOORD 1\n",
+         "#define NORMAL 2\n",
       };
       for (auto& define : defines)
          gl_source.push_back(define.c_str());
@@ -152,10 +155,6 @@ namespace GL
 
       glAttachShader(prog, vert);
       glAttachShader(prog, frag);
-
-      glBindAttribLocation(prog, VertexLocation, "aVertex");
-      glBindAttribLocation(prog, TexCoordLocation, "aTexCoord");
-      glBindAttribLocation(prog, NormalLocation, "aNormal");
 
       glLinkProgram(prog);
       log_program(prog);

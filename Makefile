@@ -43,12 +43,11 @@ else
    CFLAGS += -O3
 endif
 
-CXXFLAGS += -std=gnu++11 -Wall -pedantic $(fpic) -DHAVE_ZIP_DEFLATE $(shell pkg-config assimp --cflags)
+CXXFLAGS += -std=gnu++11 -Wall -pedantic $(fpic) -DHAVE_ZIP_DEFLATE
 CFLAGS += -std=gnu99 -Wall -pedantic $(fpic) -DHAVE_ZIP_DEFLATE
 
 SOURCES := $(wildcard *.cpp) $(wildcard */*.cpp)
 CSOURCES = $(wildcard rpng/*.c) glsym/rglgen.c
-LIBS += $(shell pkg-config assimp --libs)
 
 ifeq ($(GLES), 1)
    LIBS += -lGLESv2

@@ -10,7 +10,7 @@ uniform GlobalVertexData
    mat4 inv_proj;
 };
 
-in vec2 aVertex;
+layout(location = VERTEX) in vec2 aVertex;
 out vec3 vDirection;
 
 void main()
