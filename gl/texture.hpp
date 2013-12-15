@@ -8,6 +8,7 @@ namespace GL
 {
    class Framebuffer;
 
+   struct StaticSampler;
    class Sampler : public ContextListener, public ContextResource
    {
       public:
@@ -16,14 +17,16 @@ namespace GL
 
          enum Type
          {
-            PointWrap,
+            PointWrap = 0,
             PointClamp,
             BilinearWrap,
             BilinearClamp,
             TrilinearWrap,
             TrilinearClamp,
             ShadowLinear,
-            ShadowPoint
+            ShadowPoint,
+
+            NumSamplers
          };
 
          void init(Type type);
@@ -34,6 +37,10 @@ namespace GL
          void bind(unsigned unit);
          void unbind(unsigned unit);
 
+         static Sampler& get(Type type);
+         static void bind(unsigned unit, Type type);
+         static void unbind(unsigned unit, Type type);
+
       private:
          Type type = BilinearClamp;
          GLuint id = 0;
@@ -42,6 +49,13 @@ namespace GL
          GLenum type_to_compare(Type type);
          GLenum type_to_min(Type type);
          GLenum type_to_mag(Type type);
+
+         static StaticSampler samplers[NumSamplers];
+   };
+
+   struct StaticSampler : Sampler
+   {
+      StaticSampler(Type type) { init(type); }
    };
 
    class Texture : public ContextListener, public ContextResource

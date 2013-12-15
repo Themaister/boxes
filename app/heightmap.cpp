@@ -47,8 +47,6 @@ class Scene
             drawables.push_back(move(draw));
          }
 
-         sampler.init(Sampler::TrilinearClamp);
-
          shader.set_samplers({{ "Diffuse", 0 }});
          shader.set_uniform_buffers({{ "ModelTransform", 2 }, { "Material", 3 }});
          shader.reserve_define("DIFFUSE_MAP", 1);
@@ -57,7 +55,7 @@ class Scene
 
       void render()
       {
-         sampler.bind(0);
+         Sampler::bind(0, Sampler::TrilinearClamp);
          shader.use();
          for (auto& draw : drawables)
          {
@@ -76,7 +74,7 @@ class Scene
             if (draw->use_diffuse)
                draw->tex.unbind(0);
          }
-         sampler.unbind(0);
+         Sampler::unbind(0, Sampler::TrilinearClamp);
          shader.unbind();
       }
 

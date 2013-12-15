@@ -7,6 +7,26 @@ using namespace std;
 
 namespace GL
 {
+   StaticSampler Sampler::samplers[Sampler::NumSamplers] = {
+      { PointWrap }, { PointClamp }, { BilinearWrap }, { BilinearClamp }, { TrilinearWrap },
+      { TrilinearClamp }, { ShadowLinear }, { ShadowPoint },
+   };
+
+   Sampler& Sampler::get(Type type)
+   {
+      return samplers[static_cast<unsigned>(type)];
+   }
+
+   void Sampler::bind(unsigned unit, Type type)
+   {
+      get(type).bind(unit);
+   }
+
+   void Sampler::unbind(unsigned unit, Type type)
+   {
+      get(type).unbind(unit);
+   }
+
    GLenum Sampler::type_to_wrap(Type type)
    {
       switch (type)
