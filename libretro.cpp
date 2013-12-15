@@ -292,8 +292,8 @@ bool retro_load_game(const struct retro_game_info *info)
    hw_render.debug_context = true;
 #endif
 
-#ifdef HAVE_OPENGLES2
-   hw_render.context_type = RETRO_HW_CONTEXT_OPENGLES2;
+#ifdef HAVE_OPENGLES3
+   hw_render.context_type = RETRO_HW_CONTEXT_OPENGLES3;
 #else
    hw_render.context_type = RETRO_HW_CONTEXT_OPENGL_CORE;
    app->get_context_version(hw_render.version_major, hw_render.version_minor);
