@@ -53,7 +53,7 @@ class Scene
          shader.set_samplers({{ "Diffuse", 0 }});
          shader.set_uniform_buffers({{ "ModelTransform", Shader::ModelTransform }, { "Material", Shader::Material }});
          shader.reserve_define("DIFFUSE_MAP", 1);
-         shader.init("generic.vs", "generic.fs");
+         shader.init("app/shaders/generic.vs", "app/shaders/generic.fs");
       }
 
       void render(const mat4& view_proj)
@@ -312,7 +312,7 @@ class HeightmapApp : public LibretroGLApplication
                   "app/zpos.png",
                   "app/zneg.png",
                }, true});
-         skybox.shader.init("skybox.vs", "skybox.fs");
+         skybox.shader.init("app/shaders/skybox.vs", "app/shaders/skybox.fs");
          skybox.shader.set_samplers({{ "skybox", 0 }});
          skybox.shader.set_uniform_buffers({{ "ModelTransform", 2 }});
          vector<int8_t> vertices = { -1, -1, 1, -1, -1, 1, 1, 1 };
