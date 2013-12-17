@@ -5,6 +5,7 @@
 #include <gl/texture.hpp>
 #include <gl/mesh.hpp>
 #include <gl/framebuffer.hpp>
+#include <gl/scene.hpp>
 #include <memory>
 #include <cstdint>
 
@@ -26,6 +27,7 @@ class Scene
             draw->vert.init(GL_ARRAY_BUFFER, mesh.vbo, Buffer::None);
             draw->elem.init(GL_ELEMENT_ARRAY_BUFFER, mesh.ibo, Buffer::None);
             draw->indices = mesh.ibo.size();
+            draw->aabb = mesh.aabb;
 
             mat4 model(1.0f);
             draw->model.init(GL_UNIFORM_BUFFER, sizeof(mat4), Buffer::None, value_ptr(model), 2);
@@ -53,29 +55,49 @@ class Scene
          shader.init("test.vs", "test.fs");
       }
 
-      void render()
+      void render(const mat4& view_proj)
       {
          Sampler::bind(0, Sampler::TrilinearClamp);
-         shader.use();
+
+         DrawList list;
+         GL::Drawable elem;
+         elem.shader = &shader;
+
+         auto start_shader = [](Shader *shader, uintptr_t shader_key) {
+            shader->set_define("DIFFUSE_MAP", !!(shader_key & 1));
+            shader->use(); 
+         };
+
          for (auto& draw : drawables)
          {
-            draw->arrays.bind();
-            if (draw->use_diffuse)
-               draw->tex.bind(0);
-            draw->model.bind();
-            draw->material.bind();
+            elem.aabb = draw->aabb;
+            elem.shader_key = draw->use_diffuse;
 
-            shader.set_define("DIFFUSE_MAP", draw->use_diffuse);
-            glDrawElements(GL_TRIANGLES, draw->indices, GL_UNSIGNED_INT, nullptr);
+            elem.draw = [&draw]() {
+               draw->arrays.bind();
+               draw->model.bind();
+               draw->material.bind();
 
-            draw->arrays.unbind();
-            draw->model.unbind();
-            draw->material.unbind();
-            if (draw->use_diffuse)
-               draw->tex.unbind(0);
+               if (draw->use_diffuse)
+                  draw->tex.bind(0);
+
+               glDrawElements(GL_TRIANGLES, draw->indices, GL_UNSIGNED_INT, nullptr);
+
+               draw->arrays.unbind();
+               draw->model.unbind();
+               draw->material.unbind();
+
+               if (draw->use_diffuse)
+                  draw->tex.unbind(0);
+            };
+
+            list.push_back(elem);
          }
+
          Sampler::unbind(0, Sampler::TrilinearClamp);
          shader.unbind();
+
+         render_draw_list(view_proj, list, start_shader);
       }
 
    private:
@@ -91,6 +113,7 @@ class Scene
 
          Texture tex;
          bool use_diffuse;
+         AABB aabb;
       };
 
       vector<unique_ptr<Drawable>> drawables;
@@ -228,7 +251,7 @@ class HeightmapApp : public LibretroGLApplication
          global_buffer.bind();
          global_fragment_buffer.bind();
 
-         scene.render();
+         scene.render(global.vp);
 
          skybox.tex.bind(0);
          Sampler::bind(0, Sampler::TrilinearClamp);
