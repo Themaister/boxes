@@ -53,6 +53,8 @@ class Scene
          shader.set_samplers({{ "Diffuse", 0 }});
          shader.set_uniform_buffers({{ "ModelTransform", Shader::ModelTransform }, { "Material", Shader::Material }});
          shader.reserve_define("DIFFUSE_MAP", 1);
+         shader.reserve_define("INSTANCED", 1);
+         shader.set_define("INSTANCED", 0);
          shader.init("app/shaders/generic.vs", "app/shaders/generic.fs");
       }
 
