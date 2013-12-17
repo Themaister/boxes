@@ -9,6 +9,7 @@ using namespace Log;
 using namespace GL;
 
 static struct retro_hw_render_callback hw_render;
+static struct retro_log_callback log_callback;
 static string libretro_dir;
 
 static unique_ptr<LibretroGLApplication> app;
@@ -74,12 +75,27 @@ static retro_environment_t environ_cb;
 static retro_input_poll_t input_poll_cb;
 static retro_input_state_t input_state_cb;
 
+static void logger_callback(const char *fmt, va_list va)
+{
+   char buffer[4 * 1024];
+   vsnprintf(buffer, sizeof(buffer), fmt, va);
+   if (log_callback.log)
+      log_callback.log(RETRO_LOG_INFO, "[GL]: %s\n", buffer);
+   else
+      fprintf(stderr, "[libretro GL]: %s\n", buffer);
+}
+
 void retro_set_environment(retro_environment_t cb)
 {
    environ_cb = cb;
 
    bool tmp = true;
    cb(RETRO_ENVIRONMENT_SET_SUPPORT_NO_GAME, &tmp);
+
+   if (!cb(RETRO_ENVIRONMENT_GET_LOG_INTERFACE, &log_callback))
+      log_callback.log = nullptr;
+
+   Log::set_logger(logger_callback);
 }
 
 void retro_set_audio_sample(retro_audio_sample_t cb)

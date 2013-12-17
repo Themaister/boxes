@@ -58,13 +58,18 @@ namespace Template
 
 namespace Log
 {
+   using LogFunc = void (*)(const char*, va_list);
+
+   void set_logger(LogFunc func);
+   LogFunc get_logger();
+
    inline void log(const char *fmt, ...)
    {
-      char message[4096];
       va_list list;
       va_start(list, fmt);
-      std::vsnprintf(message, sizeof(message), fmt, list);
-      std::cerr << "[libretro GL]: " << message << std::endl;
+      auto logger = get_logger();
+      if (logger)
+         logger(fmt, list);
       va_end(list);
    }
 }

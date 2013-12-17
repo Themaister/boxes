@@ -235,7 +235,28 @@ namespace GL
          parse_vertex(vert, faces, mesh, vertex, normal, tex);
    }
 
-   vector<Mesh> load_meshes_obj(const std::string& path)
+   static AABB compute_aabb(const vector<float>& vec, unsigned stride)
+   {
+      if (vec.empty())
+         return {};
+
+      auto minimum = make_vec3(vec.data());
+      vec3 maximum = minimum;
+
+      for (unsigned i = stride; i < vec.size(); i += stride)
+      {
+         auto v = make_vec3(vec.data() + i);
+         minimum = min(minimum, v);
+         maximum = max(maximum, v);
+      }
+
+      AABB aabb;
+      aabb.base = minimum;
+      aabb.offset = maximum - minimum;
+      return aabb;
+   }
+
+   vector<Mesh> load_meshes_obj(const string& path)
    {
       vector<Mesh> meshes;
 
@@ -289,6 +310,18 @@ namespace GL
       {
          current.finalize();
          meshes.push_back(move(current));
+      }
+
+      for (auto& mesh : meshes)
+      {
+         unsigned stride = 0;
+         if (mesh.has_vertex)
+            stride += 3;
+         if (mesh.has_normal)
+            stride += 3;
+         if (mesh.has_texcoord)
+            stride += 2;
+         mesh.aabb = compute_aabb(mesh.vbo, stride);
       }
 
       return meshes;
