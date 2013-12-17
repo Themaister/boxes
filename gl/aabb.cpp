@@ -7,7 +7,8 @@ namespace GL
 {
    vec3 AABB::center() const { return base + vec3(0.5f) * offset; }
 
-   // Assumes we're not transforming to clip space or anything ...
+   // Assumes we're not using projective geometry ... It gets troublesome to handle flipped-sign W.
+   // Transform all corners of the AABB then create a new AABB based on the transformed result.
    AABB AABB::transform(const mat4& mat) const
    {
       AABB aabb;

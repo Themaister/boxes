@@ -12,7 +12,7 @@ else ifneq ($(findstring win,$(shell uname -a)),)
 endif
 endif
 
-TARGET_NAME := heightmap
+TARGET_NAME ?= modelview
 
 ifeq ($(platform), unix)
    TARGET := $(TARGET_NAME)_libretro.so
@@ -46,7 +46,7 @@ endif
 CXXFLAGS += -std=gnu++11 -Wall -pedantic $(fpic) -DHAVE_ZIP_DEFLATE
 CFLAGS += -std=gnu99 -Wall -pedantic $(fpic) -DHAVE_ZIP_DEFLATE
 
-SOURCES := $(wildcard *.cpp) $(wildcard */*.cpp)
+SOURCES := $(wildcard *.cpp) $(wildcard gl/*.cpp) app/$(TARGET_NAME).cpp
 CSOURCES = $(wildcard rpng/*.c) glsym/rglgen.c
 
 ifeq ($(GLES), 1)

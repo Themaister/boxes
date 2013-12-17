@@ -141,12 +141,12 @@ class Scene
       RenderQueue queue;
 };
 
-class HeightmapApp : public LibretroGLApplication
+class ModelViewApp : public LibretroGLApplication
 {
    public:
       void get_system_info(retro_system_info& info) const override
       {
-         info.library_name = "Heightmap";
+         info.library_name = "ModelView";
          info.library_version = "v1";
          info.valid_extensions = nullptr;
          info.need_fullpath = false;
@@ -166,12 +166,12 @@ class HeightmapApp : public LibretroGLApplication
 
       string get_application_name() const override
       {
-         return "Heightmap";
+         return "ModelView";
       }
 
       string get_application_name_short() const override
       {
-         return "heightmap";
+         return "modelview";
       }
 
       vector<Resolution> get_resolutions() const override
@@ -371,6 +371,6 @@ class HeightmapApp : public LibretroGLApplication
 
 unique_ptr<LibretroGLApplication> libretro_gl_application_create()
 {
-   return Util::make_unique<HeightmapApp>();
+   return Util::make_unique<ModelViewApp>();
 }
 
