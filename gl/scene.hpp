@@ -15,7 +15,7 @@ namespace GL
    {
       virtual void set_cache_depth(float depth) = 0;
       virtual const AABB& get_aabb() const = 0;
-      virtual glm::mat4 get_model_transform() const = 0;
+      virtual glm::vec4 get_model_transform() const = 0;
       virtual bool compare_less(const Renderable& other) const = 0;
       virtual void render() = 0;
    };

@@ -12,15 +12,15 @@ uniform GlobalVertexData
 } global_vert;
 
 #if INSTANCED
-#define MAX_INSTANCES 512
+#define MAX_INSTANCES 1024
 uniform ModelTransform
 {
-   mat4 transform[MAX_INSTANCES];
+   vec4 offset[MAX_INSTANCES]; // vec4(vec3(offset), scale)
 } model;
 #else
 uniform ModelTransform
 {
-   mat4 transform;
+   vec4 transform;
 } model;
 #endif
 
@@ -38,17 +38,17 @@ out VertexData
 void main()
 {
 #if INSTANCED
-   vec4 world = model.transform[gl_InstanceID] * vec4(aVertex, 1.0);
+   vec4 world = vec4(model.offset[gl_InstanceID].xyz + model.offset[gl_InstanceID].w * aVertex, 1.0);
 #else
-   vec4 world = model.transform * vec4(aVertex, 1.0);
+   vec4 world = model.offset + vec4(model.offset.w * aVertex, 1.0);
 #endif
 
    gl_Position = global_vert.vp * world;
 
 #if INSTANCED
-   vout.normal = mat3(model.transform[gl_InstanceID]) * aNormal;
+   vout.normal = aNormal;
 #else
-   vout.normal = mat3(model.transform) * aNormal;
+   vout.normal = aNormal;
 #endif
 
    vout.world = world.xyz;

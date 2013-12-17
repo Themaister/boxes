@@ -29,8 +29,8 @@ class Scene
             draw->indices = mesh.ibo.size();
             draw->aabb = mesh.aabb;
 
-            mat4 model(1.0f);
-            draw->model.init(GL_UNIFORM_BUFFER, sizeof(mat4), Buffer::None, value_ptr(model), Shader::ModelTransform);
+            vec4 model(0.0, 0.0, 0.0, 1.0f);
+            draw->model.init(GL_UNIFORM_BUFFER, sizeof(vec4), Buffer::None, value_ptr(model), Shader::ModelTransform);
 
             MaterialBuffer material(mesh.material);
             draw->material.init(GL_UNIFORM_BUFFER, sizeof(material),

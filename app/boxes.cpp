@@ -51,6 +51,7 @@ class Scene
 
       void render(const mat4& view_proj)
       {
+         drawable.view_proj = view_proj;
          queue.set_view_proj(view_proj);
          queue.begin();
          queue.push(&drawable);
@@ -61,7 +62,7 @@ class Scene
    private:
       struct Block
       {
-         mat4 model;
+         vec4 model;
       };
 
       struct Drawable : Renderable
@@ -81,22 +82,23 @@ class Scene
 
          vector<Block> blocks;
          AABB aabb;
+         mat4 view_proj;
 
          Drawable()
          {
-            for (int z = -20; z <= 20; z += 4)
-               for (int y = -20; y <= 20; y += 4)
-                  for (int x = -20; x <= 20; x += 4)
-                     blocks.push_back({translate(mat4(1.0f), vec3(x, y, z))});
-            aabb.base = vec3(-22);
-            aabb.offset = vec3(22) - aabb.base;
+            for (int z = -100; z <= 100; z += 4)
+               for (int y = -100; y <= 100; y += 4)
+                  for (int x = -100; x <= 100; x += 4)
+                     blocks.push_back({vec4(x, y, z, 1.0f)});
+            aabb.base = vec3(-101);
+            aabb.offset = vec3(101) - aabb.base;
 
             model.init(GL_UNIFORM_BUFFER, Shader::MaxInstances * sizeof(mat4), Buffer::WriteOnly, nullptr, Shader::ModelTransform);
          }
 
          inline void set_cache_depth(float depth) override { cache_depth = depth; }
          inline const AABB& get_aabb() const override { return aabb; }
-         inline mat4 get_model_transform() const override { return mat4(1.0f); }
+         inline vec4 get_model_transform() const override { return vec4(0.0f, 0.0f, 0.0f, 1.0f); }
          inline bool compare_less(const Renderable& o_tmp) const override
          {
             const Drawable& o = static_cast<const Drawable&>(o_tmp);
@@ -130,13 +132,36 @@ class Scene
             else
                shader->set_define("DIFFUSE_MAP", 0);
 
-            for (size_t i = 0; i < blocks.size(); i += Shader::MaxInstances)
+            vector<Block> culled_blocks;
+            remove_copy_if(begin(blocks), end(blocks), back_inserter(culled_blocks),
+                  [this](const Block& block) -> bool {
+                     AABB aabb;
+                     aabb.base = vec3(block.model.x, block.model.y, block.model.z) - vec3(1.0f);
+                     aabb.offset = vec3(2.0f);
+                     return !aabb.intersects_clip_space(view_proj);
+                  });
+
+            sort(begin(culled_blocks), end(culled_blocks), [this](const Block& a, const Block& b) -> bool {
+                     vec4 a_pos = a.model;
+                     vec4 b_pos = b.model;
+
+                     auto a_trans = view_proj * a_pos;
+                     auto b_trans = view_proj * b_pos;
+                     float a_depth = a_trans.z + a_trans.w;
+                     float b_depth = b_trans.z + b_trans.w;
+                     return a_depth < b_depth;
+                  });
+
+            size_t active_blocks = culled_blocks.size();
+            Log::log("Blocks: %zu.", active_blocks);
+
+            for (size_t i = 0; i < active_blocks; i += Shader::MaxInstances)
             {
-               size_t instances = std::min<size_t>(blocks.size() - i, Shader::MaxInstances);
+               size_t instances = std::min<size_t>(active_blocks, Shader::MaxInstances);
                Block *data;
                if (model.map(data))
                {
-                  copy(begin(blocks) + i, begin(blocks) + i + instances, data);
+                  copy(begin(culled_blocks) + i, begin(culled_blocks) + i + instances, data);
                   model.unmap();
                }
                model.bind();

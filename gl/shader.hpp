@@ -29,7 +29,7 @@ namespace GL
             Material = 3
          };
 
-         enum { MaxInstances = 512 };
+         enum { MaxInstances = 4 * 1024 };
 
          struct Sampler
          {
