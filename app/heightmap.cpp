@@ -95,7 +95,6 @@ class Scene
 
       vector<unique_ptr<Drawable>> drawables;
       Shader shader;
-      Sampler sampler;
 };
 
 class HeightmapApp : public LibretroGLApplication
@@ -232,7 +231,7 @@ class HeightmapApp : public LibretroGLApplication
          scene.render();
 
          skybox.tex.bind(0);
-         skybox.sampler.bind(0);
+         Sampler::bind(0, Sampler::TrilinearClamp);
          skybox.shader.use();
          skybox.arrays.bind();
          glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
@@ -242,7 +241,7 @@ class HeightmapApp : public LibretroGLApplication
          global_buffer.unbind();
          global_fragment_buffer.unbind();
          skybox.tex.unbind(0);
-         skybox.sampler.unbind(0);
+         Sampler::unbind(0, Sampler::TrilinearClamp);
       }
 
       void get_context_version(unsigned& major, unsigned& minor) const override
@@ -272,7 +271,6 @@ class HeightmapApp : public LibretroGLApplication
                   "app/zpos.png",
                   "app/zneg.png",
                }, true});
-         skybox.sampler.init(Sampler::TrilinearClamp);
          skybox.shader.init("skybox.vs", "skybox.fs");
          skybox.shader.set_samplers({{ "skybox", 0 }});
          skybox.shader.set_uniform_buffers({{ "ModelTransform", 2 }});
@@ -321,7 +319,6 @@ class HeightmapApp : public LibretroGLApplication
       struct
       {
          Texture tex;
-         Sampler sampler;
          Shader shader;
          VertexArray arrays;
          Buffer vertex;
