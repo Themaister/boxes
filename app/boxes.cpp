@@ -19,36 +19,27 @@ class Scene
    public:
       void init()
       {
-         auto meshes = load_meshes_obj("maps/model.obj");
-         for (auto& mesh : meshes)
+         auto mesh = create_mesh_box();
+         drawable.arrays.setup(mesh.arrays, &drawable.vert, &drawable.elem);
+         drawable.vert.init(GL_ARRAY_BUFFER, mesh.vbo, Buffer::None);
+         drawable.elem.init(GL_ELEMENT_ARRAY_BUFFER, mesh.ibo, Buffer::None);
+         drawable.indices = mesh.ibo.size();
+
+         MaterialBuffer material(mesh.material);
+         drawable.material.init(GL_UNIFORM_BUFFER, sizeof(material),
+               Buffer::None, &material, Shader::Material);
+
+         if (!mesh.material.diffuse_map.empty())
          {
-            auto draw = make_unique<Drawable>();
-            draw->arrays.setup(mesh.arrays, &draw->vert, &draw->elem);
-            draw->vert.init(GL_ARRAY_BUFFER, mesh.vbo, Buffer::None);
-            draw->elem.init(GL_ELEMENT_ARRAY_BUFFER, mesh.ibo, Buffer::None);
-            draw->indices = mesh.ibo.size();
-            draw->aabb = mesh.aabb;
-
-            mat4 model(1.0f);
-            draw->model.init(GL_UNIFORM_BUFFER, sizeof(mat4), Buffer::None, value_ptr(model), Shader::ModelTransform);
-
-            MaterialBuffer material(mesh.material);
-            draw->material.init(GL_UNIFORM_BUFFER, sizeof(material),
-                  Buffer::None, &material, Shader::Material);
-
-            if (!mesh.material.diffuse_map.empty())
-            {
-               draw->use_diffuse = true;
-               draw->tex.load_texture_2d({Texture::Texture2D,
-                     { mesh.material.diffuse_map },
-                     true });
-            }
-            else
-               draw->use_diffuse = false;
-
-            draw->shader = &shader;
-            drawables.push_back(move(draw));
+            drawable.use_diffuse = true;
+            drawable.tex.load_texture_2d({Texture::Texture2D,
+                  { mesh.material.diffuse_map },
+                  true });
          }
+         else
+            drawable.use_diffuse = false;
+
+         drawable.shader = &shader;
 
          shader.set_samplers({{ "Diffuse", 0 }});
          shader.set_uniform_buffers({{ "ModelTransform", Shader::ModelTransform }, { "Material", Shader::Material }});
@@ -60,16 +51,19 @@ class Scene
 
       void render(const mat4& view_proj)
       {
-
          queue.set_view_proj(view_proj);
          queue.begin();
-         for (auto& draw : drawables)
-            queue.push(draw.get());
+         queue.push(&drawable);
          queue.end();
          queue.render();
       }
 
    private:
+      struct Block
+      {
+         mat4 model;
+      };
+
       struct Drawable : Renderable
       {
          Shader *shader;
@@ -83,8 +77,22 @@ class Scene
 
          Texture tex;
          bool use_diffuse;
-         AABB aabb;
          float cache_depth;
+
+         vector<Block> blocks;
+         AABB aabb;
+
+         Drawable()
+         {
+            for (int z = -20; z <= 20; z += 4)
+               for (int y = -20; y <= 20; y += 4)
+                  for (int x = -20; x <= 20; x += 4)
+                     blocks.push_back({translate(mat4(1.0f), vec3(x, y, z))});
+            aabb.base = vec3(-22);
+            aabb.offset = vec3(22) - aabb.base;
+
+            model.init(GL_UNIFORM_BUFFER, Shader::MaxInstances * sizeof(mat4), Buffer::WriteOnly, nullptr, Shader::ModelTransform);
+         }
 
          inline void set_cache_depth(float depth) override { cache_depth = depth; }
          inline const AABB& get_aabb() const override { return aabb; }
@@ -111,9 +119,9 @@ class Scene
             shader->use();
 
             arrays.bind();
-            model.bind();
             material.bind();
 
+            shader->set_define("INSTANCED", 1);
             if (use_diffuse)
             {
                tex.bind(0);
@@ -122,7 +130,18 @@ class Scene
             else
                shader->set_define("DIFFUSE_MAP", 0);
 
-            glDrawElements(GL_TRIANGLES, indices, GL_UNSIGNED_INT, nullptr);
+            for (size_t i = 0; i < blocks.size(); i += Shader::MaxInstances)
+            {
+               size_t instances = std::min<size_t>(blocks.size() - i, Shader::MaxInstances);
+               Block *data;
+               if (model.map(data))
+               {
+                  copy(begin(blocks) + i, begin(blocks) + i + instances, data);
+                  model.unmap();
+               }
+               model.bind();
+               glDrawElementsInstanced(GL_TRIANGLES, indices, GL_UNSIGNED_INT, nullptr, instances);
+            }
 
             arrays.unbind();
             model.unbind();
@@ -136,17 +155,17 @@ class Scene
          }
       };
 
-      vector<unique_ptr<Drawable>> drawables;
+      Drawable drawable;
       Shader shader;
       RenderQueue queue;
 };
 
-class ModelViewApp : public LibretroGLApplication
+class BoxesApp : public LibretroGLApplication
 {
    public:
       void get_system_info(retro_system_info& info) const override
       {
-         info.library_name = "ModelView";
+         info.library_name = "Boxes";
          info.library_version = "v1";
          info.valid_extensions = nullptr;
          info.need_fullpath = false;
@@ -199,9 +218,9 @@ class ModelViewApp : public LibretroGLApplication
          global.camera_pos = vec4(player_pos.x, player_pos.y, player_pos.z, 0.0);
 
          global_fragment.camera_pos = global.camera_pos;
-         global_fragment.light_pos = vec4(0.0, 5.0, 0.0, 1.0);
+         global_fragment.light_pos = vec4(50.0, 50.0, 0.0, 1.0);
          global_fragment.light_color = vec4(1.0);
-         global_fragment.light_ambient = vec4(0.15);
+         global_fragment.light_ambient = vec4(0.2);
 
          GlobalTransforms *buf;
          if (global_buffer.map(buf))
@@ -371,6 +390,6 @@ class ModelViewApp : public LibretroGLApplication
 
 unique_ptr<LibretroGLApplication> libretro_gl_application_create()
 {
-   return Util::make_unique<ModelViewApp>();
+   return Util::make_unique<BoxesApp>();
 }
 

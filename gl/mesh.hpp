@@ -68,6 +68,7 @@ namespace GL
    };
 
    std::vector<Mesh> load_meshes_obj(const std::string& path);
+   Mesh create_mesh_box();
 }
 
 #endif

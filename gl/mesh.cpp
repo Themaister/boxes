@@ -326,5 +326,81 @@ namespace GL
 
       return meshes;
    }
+
+   Mesh create_mesh_box()
+   {
+      Mesh mesh{};
+      mesh.has_vertex = true;
+      mesh.has_normal = true;
+      mesh.has_texcoord = true;
+
+      struct Vertex
+      {
+         float vert[3];
+         float normal[3];
+         float tex[2];
+      };
+
+      static const Vertex vertex_data[] = {
+         { { -1, -1, 1 }, { 0, 0, -1 }, { 0, 1 } }, // Front
+         { {  1, -1, 1 }, { 0, 0, -1 }, { 1, 1 } },
+         { { -1,  1, 1 }, { 0, 0, -1 }, { 0, 0 } },
+         { {  1,  1, 1 }, { 0, 0, -1 }, { 1, 0 } },
+
+         { {  1, -1, -1 }, { 0, 0,  1 }, { 0, 1 } }, // Back
+         { { -1, -1, -1 }, { 0, 0,  1 }, { 1, 1 } },
+         { {  1,  1, -1 }, { 0, 0,  1 }, { 0, 0 } },
+         { { -1,  1, -1 }, { 0, 0,  1 }, { 1, 0 } },
+
+         { { -1, -1, -1 }, { -1, 0, 0 }, { 0, 1 } }, // Left
+         { { -1, -1,  1 }, { -1, 0, 0 }, { 1, 1 } },
+         { { -1,  1, -1 }, { -1, 0, 0 }, { 0, 0 } },
+         { { -1,  1,  1 }, { -1, 0, 0 }, { 1, 0 } },
+
+         { { 1, -1,  1 }, { 1, 0, 0 }, { 0, 1 } }, // Right
+         { { 1, -1, -1 }, { 1, 0, 0 }, { 1, 1 } },
+         { { 1,  1,  1 }, { 1, 0, 0 }, { 0, 0 } },
+         { { 1,  1, -1 }, { 1, 0, 0 }, { 1, 0 } },
+
+         { { -1,  1,  1 }, { 0, 1, 0 }, { 0, 1 } }, // Top
+         { {  1,  1,  1 }, { 0, 1, 0 }, { 1, 1 } },
+         { { -1,  1, -1 }, { 0, 1, 0 }, { 0, 0 } },
+         { {  1,  1, -1 }, { 0, 1, 0 }, { 1, 0 } },
+
+         { { -1, -1, -1 }, { 0, -1, 0 }, { 0, 1 } }, // Bottom
+         { {  1, -1, -1 }, { 0, -1, 0 }, { 1, 1 } },
+         { { -1, -1,  1 }, { 0, -1, 0 }, { 0, 0 } },
+         { {  1, -1,  1 }, { 0, -1, 0 }, { 1, 0 } },
+      };
+
+      static const GLuint indices[] = {
+         0, 1, 2, // Front
+         3, 2, 1,
+
+         4, 5, 6, // Back
+         7, 6, 5,
+
+         8, 9, 10, // Left
+         11, 10, 9,
+
+         12, 13, 14, // Right
+         15, 14, 13,
+
+         16, 17, 18, // Top
+         19, 18, 17,
+
+         20, 21, 22, // Bottom
+         23, 22, 21,
+      };
+
+      mesh.vbo.resize(sizeof(vertex_data) / sizeof(float));
+      memcpy(mesh.vbo.data(), vertex_data, sizeof(vertex_data));
+      mesh.ibo.insert(end(mesh.ibo), indices, indices + 36);
+      mesh.aabb.base = vec3(-1);
+      mesh.aabb.offset = vec3(2);
+
+      mesh.finalize();
+      return mesh;
+   }
 }
 

@@ -12,7 +12,7 @@ uniform GlobalVertexData
 } global_vert;
 
 #if INSTANCED
-#define MAX_INSTANCES 64
+#define MAX_INSTANCES 512
 uniform ModelTransform
 {
    mat4 transform[MAX_INSTANCES];

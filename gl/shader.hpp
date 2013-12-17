@@ -29,6 +29,8 @@ namespace GL
             Material = 3
          };
 
+         enum { MaxInstances = 512 };
+
          struct Sampler
          {
             std::string name;

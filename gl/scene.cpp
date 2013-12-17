@@ -40,6 +40,11 @@ namespace GL
       //Log::log("%zu draw calls.", draw_list.size());
    }
 
+   const RenderQueue::DrawList& RenderQueue::get_draw_list() const
+   {
+      return draw_list;
+   }
+
    void RenderQueue::push(Renderable* elem)
    {
       draw_list.push_back(elem);

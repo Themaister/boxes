@@ -30,6 +30,7 @@ namespace GL
          void end();
          void push(Renderable* elem);
          void render();
+         const DrawList& get_draw_list() const;
 
       private:
          DrawList draw_list;
