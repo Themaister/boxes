@@ -23,7 +23,10 @@ namespace GL
          enum UniformLocation
          {
             GlobalVertexData = 0,
-            GlobalFragmentData = 1
+            GlobalFragmentData = 1,
+
+            ModelTransform = 2,
+            Material = 3
          };
 
          struct Sampler

@@ -30,11 +30,11 @@ class Scene
             draw->aabb = mesh.aabb;
 
             mat4 model(1.0f);
-            draw->model.init(GL_UNIFORM_BUFFER, sizeof(mat4), Buffer::None, value_ptr(model), 2);
+            draw->model.init(GL_UNIFORM_BUFFER, sizeof(mat4), Buffer::None, value_ptr(model), Shader::ModelTransform);
 
             MaterialBuffer material(mesh.material);
             draw->material.init(GL_UNIFORM_BUFFER, sizeof(material),
-                  Buffer::None, &material, 3);
+                  Buffer::None, &material, Shader::Material);
 
             if (!mesh.material.diffuse_map.empty())
             {
@@ -46,63 +46,36 @@ class Scene
             else
                draw->use_diffuse = false;
 
+            draw->shader = &shader;
             drawables.push_back(move(draw));
          }
 
          shader.set_samplers({{ "Diffuse", 0 }});
-         shader.set_uniform_buffers({{ "ModelTransform", 2 }, { "Material", 3 }});
+         shader.set_uniform_buffers({{ "ModelTransform", Shader::ModelTransform }, { "Material", Shader::Material }});
          shader.reserve_define("DIFFUSE_MAP", 1);
-         shader.init("test.vs", "test.fs");
+         shader.init("generic.vs", "generic.fs");
       }
 
       void render(const mat4& view_proj)
       {
          Sampler::bind(0, Sampler::TrilinearClamp);
+         shader.use();
 
-         DrawList list;
-         GL::Drawable elem;
-         elem.shader = &shader;
-
-         auto start_shader = [](Shader *shader, uintptr_t shader_key) {
-            shader->set_define("DIFFUSE_MAP", !!(shader_key & 1));
-            shader->use(); 
-         };
-
+         queue.set_view_proj(view_proj);
+         queue.begin();
          for (auto& draw : drawables)
-         {
-            elem.aabb = draw->aabb;
-            elem.shader_key = draw->use_diffuse;
-
-            elem.draw = [&draw]() {
-               draw->arrays.bind();
-               draw->model.bind();
-               draw->material.bind();
-
-               if (draw->use_diffuse)
-                  draw->tex.bind(0);
-
-               glDrawElements(GL_TRIANGLES, draw->indices, GL_UNSIGNED_INT, nullptr);
-
-               draw->arrays.unbind();
-               draw->model.unbind();
-               draw->material.unbind();
-
-               if (draw->use_diffuse)
-                  draw->tex.unbind(0);
-            };
-
-            list.push_back(elem);
-         }
+            queue.push(draw.get());
+         queue.end();
+         queue.render();
 
          Sampler::unbind(0, Sampler::TrilinearClamp);
          shader.unbind();
-
-         render_draw_list(view_proj, list, start_shader);
       }
 
    private:
-      struct Drawable
+      struct Drawable : Renderable
       {
+         Shader *shader;
          VertexArray arrays;
          Buffer vert;
          Buffer elem;
@@ -114,10 +87,55 @@ class Scene
          Texture tex;
          bool use_diffuse;
          AABB aabb;
+         float cache_depth;
+
+         inline void set_cache_depth(float depth) override { cache_depth = depth; }
+         inline const AABB& get_aabb() const override { return aabb; }
+         inline mat4 get_model_transform() const override { return mat4(1.0f); }
+         inline bool compare_less(const Renderable& o_tmp) const override
+         {
+            const Drawable& o = static_cast<const Drawable&>(o_tmp);
+            if (&o == this)
+               return false;
+
+            if (shader != o.shader)
+               return true;
+            if (use_diffuse && !o.use_diffuse)
+               return true;
+            if (cache_depth < o.cache_depth)
+               return true;
+
+            return false;
+         }
+
+         inline void render()
+         {
+            arrays.bind();
+            model.bind();
+            material.bind();
+
+            if (use_diffuse)
+            {
+               tex.bind(0);
+               shader->set_define("DIFFUSE_MAP", 1);
+            }
+            else
+               shader->set_define("DIFFUSE_MAP", 0);
+
+            glDrawElements(GL_TRIANGLES, indices, GL_UNSIGNED_INT, nullptr);
+
+            arrays.unbind();
+            model.unbind();
+            material.unbind();
+
+            if (use_diffuse)
+               tex.unbind(0);
+         }
       };
 
       vector<unique_ptr<Drawable>> drawables;
       Shader shader;
+      RenderQueue queue;
 };
 
 class HeightmapApp : public LibretroGLApplication
