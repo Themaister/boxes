@@ -11,11 +11,18 @@ uniform GlobalVertexData
    vec4 camera_pos;
 } global_vert;
 
+#if INSTANCED
 #define MAX_INSTANCES 64
 uniform ModelTransform
 {
    mat4 transform[MAX_INSTANCES];
 } model;
+#else
+uniform ModelTransform
+{
+   mat4 transform;
+} model;
+#endif
 
 layout(location = VERTEX) in vec3 aVertex;
 layout(location = NORMAL) in vec3 aNormal;
@@ -33,7 +40,7 @@ void main()
 #if INSTANCED
    vec4 world = model.transform[gl_InstanceID] * vec4(aVertex, 1.0);
 #else
-   vec4 world = model.transform[0] * vec4(aVertex, 1.0);
+   vec4 world = model.transform * vec4(aVertex, 1.0);
 #endif
 
    gl_Position = global_vert.vp * world;
@@ -41,7 +48,7 @@ void main()
 #if INSTANCED
    vout.normal = mat3(model.transform[gl_InstanceID]) * aNormal;
 #else
-   vout.normal = mat3(model.transform[0]) * aNormal;
+   vout.normal = mat3(model.transform) * aNormal;
 #endif
 
    vout.world = world.xyz;
