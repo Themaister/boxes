@@ -10,14 +10,12 @@ namespace GL
          std::function<void (Shader*, std::uintptr_t shader_key)> start_shader)
    {
       DrawList culled_list;
-      Log::log("Drawlist size: %zu.", list.size());
 
       // Frustum cull first.
       for (auto& drawable : list)
       {
          auto transformed_aabb = drawable.aabb.transform(drawable.model_transform);
 
-#if 1
          // Check if transformed AABB is within clip space.
          if (transformed_aabb.intersects_clip_space(view_proj))
          {
@@ -27,12 +25,7 @@ namespace GL
             draw.depth = clip.z / clip.w; // Non-linear depth. Will be a bit wonky when camera space depth is positive, but shouldn't be a problem.
             culled_list.push_back(draw);
          }
-#else
-         culled_list.push_back(drawable);
-#endif
       }
-
-      Log::log("Culled drawlist size: %zu.", culled_list.size());
 
       // Sort on shader, shader_key, then depth (aabb).
       sort(begin(culled_list), end(culled_list),

@@ -64,10 +64,10 @@ namespace GL
          }
 
          if (culled)
-            return true;
+            return false;
       }
 
-      return false;
+      return true;
    }
 
    vec3 AABB::corner(unsigned corner) const
