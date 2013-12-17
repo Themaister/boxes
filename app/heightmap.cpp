@@ -60,8 +60,6 @@ class Scene
 
       void render(const mat4& view_proj)
       {
-         Sampler::bind(0, Sampler::TrilinearClamp);
-         shader.use();
 
          queue.set_view_proj(view_proj);
          queue.begin();
@@ -69,9 +67,6 @@ class Scene
             queue.push(draw.get());
          queue.end();
          queue.render();
-
-         Sampler::unbind(0, Sampler::TrilinearClamp);
-         shader.unbind();
       }
 
    private:
@@ -112,6 +107,9 @@ class Scene
 
          inline void render()
          {
+            Sampler::bind(0, Sampler::TrilinearClamp);
+            shader->use();
+
             arrays.bind();
             model.bind();
             material.bind();
@@ -132,6 +130,9 @@ class Scene
 
             if (use_diffuse)
                tex.unbind(0);
+
+            Sampler::unbind(0, Sampler::TrilinearClamp);
+            shader->unbind();
          }
       };
 
