@@ -20,7 +20,11 @@ class Scene
       void init()
       {
          auto mesh = create_mesh_box();
-         drawable.arrays.setup(mesh.arrays, &drawable.vert, &drawable.elem);
+         mesh.arrays.push_back({ Shader::ModelInstancedCol0, 4, GL_FLOAT, GL_FALSE, sizeof(mat4), 0 * sizeof(vec4), 1, 1 });
+         mesh.arrays.push_back({ Shader::ModelInstancedCol1, 4, GL_FLOAT, GL_FALSE, sizeof(mat4), 1 * sizeof(vec4), 1, 1 });
+         mesh.arrays.push_back({ Shader::ModelInstancedCol2, 4, GL_FLOAT, GL_FALSE, sizeof(mat4), 2 * sizeof(vec4), 1, 1 });
+         mesh.arrays.push_back({ Shader::ModelInstancedCol3, 4, GL_FLOAT, GL_FALSE, sizeof(mat4), 3 * sizeof(vec4), 1, 1 });
+         drawable.arrays.setup(mesh.arrays, { &drawable.vert, &drawable.model }, &drawable.elem);
          drawable.vert.init(GL_ARRAY_BUFFER, mesh.vbo, Buffer::None);
          drawable.elem.init(GL_ELEMENT_ARRAY_BUFFER, mesh.ibo, Buffer::None);
          drawable.indices = mesh.ibo.size();
@@ -60,11 +64,6 @@ class Scene
       }
 
    private:
-      struct Block
-      {
-         vec4 model;
-      };
-
       struct Drawable : Renderable
       {
          Shader *shader;
@@ -80,7 +79,7 @@ class Scene
          bool use_diffuse;
          float cache_depth;
 
-         vector<Block> blocks;
+         vector<mat4> blocks;
          AABB aabb;
          mat4 view_proj;
 
@@ -89,16 +88,15 @@ class Scene
             for (int z = -100; z <= 100; z += 4)
                for (int y = -100; y <= 100; y += 4)
                   for (int x = -100; x <= 100; x += 4)
-                     blocks.push_back({vec4(x, y, z, 1.0f)});
-            aabb.base = vec3(-101);
-            aabb.offset = vec3(101) - aabb.base;
+                     blocks.push_back(translate(mat4(1.0f), vec3(x, y, z)));
+            aabb = AABB(vec3(-101), vec3(101));
 
-            model.init(GL_UNIFORM_BUFFER, Shader::MaxInstances * sizeof(mat4), Buffer::WriteOnly, nullptr, Shader::ModelTransform);
+            model.init(GL_ARRAY_BUFFER, blocks.size() * sizeof(mat4), Buffer::None, blocks.data());
          }
 
          inline void set_cache_depth(float depth) override { cache_depth = depth; }
          inline const AABB& get_aabb() const override { return aabb; }
-         inline vec4 get_model_transform() const override { return vec4(0.0f, 0.0f, 0.0f, 1.0f); }
+         inline mat4 get_model_transform() const override { return mat4(1.0f); }
          inline bool compare_less(const Renderable& o_tmp) const override
          {
             const Drawable& o = static_cast<const Drawable&>(o_tmp);
@@ -132,41 +130,7 @@ class Scene
             else
                shader->set_define("DIFFUSE_MAP", 0);
 
-            vector<Block> culled_blocks;
-            remove_copy_if(begin(blocks), end(blocks), back_inserter(culled_blocks),
-                  [this](const Block& block) -> bool {
-                     AABB aabb;
-                     aabb.base = vec3(block.model.x, block.model.y, block.model.z) - vec3(1.0f);
-                     aabb.offset = vec3(2.0f);
-                     return !aabb.intersects_clip_space(view_proj);
-                  });
-
-            sort(begin(culled_blocks), end(culled_blocks), [this](const Block& a, const Block& b) -> bool {
-                     vec4 a_pos = a.model;
-                     vec4 b_pos = b.model;
-
-                     auto a_trans = view_proj * a_pos;
-                     auto b_trans = view_proj * b_pos;
-                     float a_depth = a_trans.z + a_trans.w;
-                     float b_depth = b_trans.z + b_trans.w;
-                     return a_depth < b_depth;
-                  });
-
-            size_t active_blocks = culled_blocks.size();
-            Log::log("Blocks: %zu.", active_blocks);
-
-            for (size_t i = 0; i < active_blocks; i += Shader::MaxInstances)
-            {
-               size_t instances = std::min<size_t>(active_blocks, Shader::MaxInstances);
-               Block *data;
-               if (model.map(data))
-               {
-                  copy(begin(culled_blocks) + i, begin(culled_blocks) + i + instances, data);
-                  model.unmap();
-               }
-               model.bind();
-               glDrawElementsInstanced(GL_TRIANGLES, indices, GL_UNSIGNED_INT, nullptr, instances);
-            }
+            glDrawElementsInstanced(GL_TRIANGLES, indices, GL_UNSIGNED_INT, nullptr, blocks.size());
 
             arrays.unbind();
             model.unbind();
@@ -364,7 +328,7 @@ class BoxesApp : public LibretroGLApplication
          skybox.shader.set_uniform_buffers({{ "ModelTransform", 2 }});
          vector<int8_t> vertices = { -1, -1, 1, -1, -1, 1, 1, 1 };
          skybox.vertex.init(GL_ARRAY_BUFFER, 8, Buffer::None, vertices.data());
-         skybox.arrays.setup({{Shader::VertexLocation, 2, GL_BYTE, GL_FALSE, 0, 0}}, &skybox.vertex, nullptr);
+         skybox.arrays.setup({{Shader::VertexLocation, 2, GL_BYTE, GL_FALSE, 0, 0}}, { &skybox.vertex }, nullptr);
       }
 
    private:

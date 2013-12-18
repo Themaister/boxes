@@ -20,11 +20,7 @@ namespace GL
       // Frustum culling.
       draw_list.erase(remove_if(std::begin(draw_list), std::end(draw_list), [this](Renderable* draw) -> bool {
                auto aabb = draw->get_aabb();
-
-               auto model_offset = draw->get_model_transform();
-               auto trans = translate(mat4(1.0f), vec3(model_offset.x, model_offset.y, model_offset.z));
-               auto scaling = scale(mat4(1.0f), vec3(model_offset.w));
-               auto model = trans * scaling;
+               auto model = draw->get_model_transform();
 
                // Distance in clip space from near plane, plane eq (0, 0, 1, 1).
                auto c = aabb.transform(model).center();

@@ -11,6 +11,8 @@ namespace GL
 {
    struct AABB
    {
+      AABB() = default;
+      AABB(const glm::vec3& minimum, const glm::vec3& maximum);
       glm::vec3 base;
       glm::vec3 offset;
 

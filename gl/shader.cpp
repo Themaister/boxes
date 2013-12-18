@@ -61,6 +61,7 @@ namespace GL
          "#define VERTEX 0\n",
          "#define TEXCOORD 1\n",
          "#define NORMAL 2\n",
+         "#define MODEL_INSTANCED 3\n",
       };
       for (auto& define : defines)
          gl_source.push_back(define.c_str());

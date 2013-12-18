@@ -17,7 +17,11 @@ namespace GL
          {
             VertexLocation = 0,
             TexCoordLocation = 1,
-            NormalLocation = 2
+            NormalLocation = 2,
+            ModelInstancedCol0 = 3,
+            ModelInstancedCol1 = 4,
+            ModelInstancedCol2 = 5,
+            ModelInstancedCol3 = 6,
          };
 
          enum UniformLocation

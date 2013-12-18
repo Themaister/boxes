@@ -5,6 +5,12 @@ using namespace glm;
 
 namespace GL
 {
+   AABB::AABB(const glm::vec3& minimum, const glm::vec3& maximum)
+   {
+      base = minimum;
+      offset = maximum - minimum;
+   }
+
    vec3 AABB::center() const { return base + vec3(0.5f) * offset; }
 
    // Assumes we're not using projective geometry ... It gets troublesome to handle flipped-sign W.
