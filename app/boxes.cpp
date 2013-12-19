@@ -21,7 +21,10 @@ class Scene
       void init()
       {
          auto mesh = create_mesh_box();
-         render_array.setup(mesh.arrays, { &vert }, &elem);
+
+         mesh.arrays.push_back({3, 4, GL_FLOAT, GL_FALSE, 0, 0, 1, 1});
+         render_array.setup(mesh.arrays, { &vert, &culled_buffer }, &elem);
+
          vert.init(GL_ARRAY_BUFFER, mesh.vbo, Buffer::None);
          elem.init(GL_ELEMENT_ARRAY_BUFFER, mesh.ibo, Buffer::None);
          drawable.indices = mesh.ibo.size();
@@ -40,14 +43,13 @@ class Scene
          else
             drawable.use_diffuse = false;
 
-         cull_shader.set_samplers({{ "uImage", 0 }});
          cull_shader.init("app/shaders/boxcull.vs", "app/shaders/boxcull.fs");
-
-         render_shader.set_samplers({{ "Diffuse", 1 }, { "uImage", 0 }});
-         render_shader.set_uniform_buffers({{ "Material", Shader::Material }});
          render_shader.reserve_define("DIFFUSE_MAP", 1);
          render_shader.init("app/shaders/boxrender.vs", "app/shaders/boxrender.fs");
 
+         culled_buffer.init(GL_ARRAY_BUFFER, 16 * 1024 * 1024, Buffer::Copy);
+
+         drawable.culled_buffer = &culled_buffer;
          drawable.cull_shader = &cull_shader;
          drawable.render_shader = &render_shader;
          drawable.render_array = &render_array;
@@ -74,7 +76,7 @@ class Scene
          Buffer model;
          Buffer material;
          Buffer indirect;
-         Texture culled_tex;
+         Buffer *culled_buffer;
 
          Texture tex;
          bool use_diffuse;
@@ -85,15 +87,14 @@ class Scene
 
          Drawable()
          {
-            for (int z = -100; z <= 100; z += 4)
-               for (int y = -100; y <= 100; y += 4)
-                  for (int x = -100; x <= 100; x += 4)
+            for (int z = -1000; z <= 1000; z += 16)
+               for (int y = -1000; y <= 1000; y += 16)
+                  for (int x = -1000; x <= 1000; x += 16)
                      blocks.push_back(vec4(vec3(x, y, z), 1.4143f));
-            aabb = AABB(vec3(-101), vec3(101));
+            aabb = AABB(vec3(-1001), vec3(1001));
 
             model.init(GL_ARRAY_BUFFER, blocks.size() * sizeof(vec4), Buffer::None, blocks.data());
             cull_array.setup({{ Shader::VertexLocation, 4, GL_FLOAT, GL_FALSE }}, { &model }, nullptr);
-            culled_tex.init({Texture::Texture1D, 1, GL_RGBA32F, unsigned(blocks.size()) });
          }
 
          inline void set_cache_depth(float depth) override { cache_depth = depth; }
@@ -130,15 +131,16 @@ class Scene
             cull_array.bind();
 
             // Frustum cull instanced cubes (points) and update indirect draw buffer.
-            culled_tex.bind_image(0, Texture::WriteOnly);
+            culled_buffer->bind_indexed(GL_SHADER_STORAGE_BUFFER, 0);
             indirect.bind_indexed(GL_ATOMIC_COUNTER_BUFFER, 0); // Instance count is written here.
             glEnable(GL_RASTERIZER_DISCARD); // Only run vertex shader stage.
             glDrawArrays(GL_POINTS, 0, blocks.size());
             glDisable(GL_RASTERIZER_DISCARD);
             indirect.unbind_indexed(GL_ATOMIC_COUNTER_BUFFER, 0);
+            culled_buffer->unbind_indexed(GL_SHADER_STORAGE_BUFFER, 0);
 
             // GL must wait until previous shader has updated data.
-            glMemoryBarrier(GL_COMMAND_BARRIER_BIT | GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+            glMemoryBarrier(GL_COMMAND_BARRIER_BIT | GL_VERTEX_ATTRIB_ARRAY_BARRIER_BIT);
 
 #if 0
             const IndirectCommand* cmd;
@@ -152,13 +154,12 @@ class Scene
             // Render instanced data.
             render_shader->use();
             render_array->bind();
-            Sampler::bind(1, Sampler::TrilinearClamp);
-            culled_tex.bind_image(0, Texture::ReadOnly);
+            Sampler::bind(0, Sampler::TrilinearClamp);
 
             material.bind();
             if (use_diffuse)
             {
-               tex.bind(1);
+               tex.bind(0);
                render_shader->set_define("DIFFUSE_MAP", 1);
             }
             else
@@ -169,12 +170,12 @@ class Scene
             indirect.unbind();
 
             if (use_diffuse)
-               tex.unbind(1);
+               tex.unbind(0);
 
-            Sampler::unbind(1, Sampler::TrilinearClamp);
+            Sampler::unbind(0, Sampler::TrilinearClamp);
             render_shader->unbind();
+            render_array->unbind();
             material.unbind();
-            culled_tex.unbind_image(1);
          }
       };
 
@@ -185,6 +186,7 @@ class Scene
 
       Buffer vert;
       Buffer elem;
+      Buffer culled_buffer;
       VertexArray render_array;
 };
 
@@ -339,7 +341,7 @@ class BoxesApp : public LibretroGLApplication
       void get_context_version(unsigned& major, unsigned& minor) const override
       {
          major = 4;
-         minor = 2;
+         minor = 3;
       }
 
       void load() override
@@ -364,8 +366,6 @@ class BoxesApp : public LibretroGLApplication
                   "app/zneg.png",
                }, true});
          skybox.shader.init("app/shaders/skybox.vs", "app/shaders/skybox.fs");
-         skybox.shader.set_samplers({{ "skybox", 0 }});
-         skybox.shader.set_uniform_buffers({{ "ModelTransform", 2 }});
          vector<int8_t> vertices = { -1, -1, 1, -1, -1, 1, 1, 1 };
          skybox.vertex.init(GL_ARRAY_BUFFER, 8, Buffer::None, vertices.data());
          skybox.arrays.setup({{Shader::VertexLocation, 2, GL_BYTE, GL_FALSE, 0, 0}}, { &skybox.vertex }, nullptr);

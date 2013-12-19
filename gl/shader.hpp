@@ -45,13 +45,7 @@ namespace GL
             unsigned index;
          };
 
-         void set_samplers(const std::vector<Sampler>& samplers);
-         void set_uniform_buffers(const std::vector<UniformBuffer>& uniform_buffers);
-         void init(const std::string& path_vs, const std::string& path_fs
-#ifndef HAVE_OPENGLES3
-               , const std::string& path_gs = ""
-#endif
-               );
+         void init(const std::string& path_vs, const std::string& path_fs, const std::string& path_gs = "");
 
          void use();
          void unbind();
@@ -95,9 +89,6 @@ namespace GL
          unsigned compute_permutation() const;
 
          bool active = false;
-         std::vector<Sampler> samplers;
-         std::vector<UniformBuffer> uniform_buffers;
-         void bind_uniforms();
    };
 }
 

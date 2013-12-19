@@ -53,11 +53,12 @@ namespace GL
          const vector<string>& defines)
    {
       vector<const GLchar*> gl_source = {
-#ifdef HAVE_OPENGLES3
-         "#version 300 es\nlayout(std140) uniform;\n",
-#else
-         "#version 420\nlayout(std140) uniform;\n",
-#endif
+         "#version 430\nlayout(std140) uniform;\n",
+         "layout(std140) buffer;\n",
+         "#define GLOBAL_VERTEX_DATA 0\n",
+         "#define GLOBAL_FRAGMENT_DATA 1\n",
+         "#define MODEL_TRANSFORM 2\n",
+         "#define MATERIAL 3\n",
          "#define VERTEX 0\n",
          "#define TEXCOORD 1\n",
          "#define NORMAL 2\n",
@@ -88,59 +89,11 @@ namespace GL
       return ret;
    }
 
-   void Shader::bind_uniforms()
-   {
-      static const vector<pair<const char*, unsigned>> uniform_mapping = {
-         { "GlobalVertexData", GlobalVertexData },
-         { "GlobalFragmentData", GlobalFragmentData },
-      };
-
-      for (auto& progpair : progs)
-      {
-         GLuint prog = progpair.second;
-
-         for (auto& map : uniform_mapping)
-         {
-            GLuint block = glGetUniformBlockIndex(prog, map.first);
-            if (block != GL_INVALID_INDEX)
-               glUniformBlockBinding(prog, block, map.second);
-         }
-
-         for (auto& buffer : uniform_buffers)
-         {
-            GLuint block = glGetUniformBlockIndex(prog, buffer.name.c_str());
-            if (block != GL_INVALID_INDEX)
-               glUniformBlockBinding(prog, block, buffer.index);
-         }
-
-         glUseProgram(prog);
-         for (auto& sampler : samplers)
-            glUniform1i(glGetUniformLocation(prog, sampler.name.c_str()), sampler.unit);
-         glUseProgram(0);
-      }
-   }
-
-   void Shader::set_samplers(const vector<Sampler>& samplers)
-   {
-      this->samplers = samplers;
-      if (active)
-         bind_uniforms();
-   }
-
-   void Shader::set_uniform_buffers(const vector<UniformBuffer>& uniform_buffers)
-   {
-      this->uniform_buffers = uniform_buffers;
-      if (active)
-         bind_uniforms();
-   }
-
    GLuint Shader::compile_shaders()
    {
       GLuint prog = glCreateProgram();
       GLuint vert = glCreateShader(GL_VERTEX_SHADER);
-#ifndef HAVE_OPENGLES3
       GLuint geom = !source_gs.empty() ? glCreateShader(GL_GEOMETRY_SHADER) : 0;
-#endif
       GLuint frag = glCreateShader(GL_FRAGMENT_SHADER);
 
       auto defines = current_defines();
@@ -153,16 +106,11 @@ namespace GL
 
       compile_shader(vert, source_vs, defines);
       compile_shader(frag, source_fs, defines);
-#ifdef HAVE_OPENGLES3
-      defines.insert(begin(defines), "precision highp float;\n");
-#endif
       compile_shader(geom, source_gs, defines);
 
       glAttachShader(prog, vert);
-#ifndef HAVE_OPENGLES3
       if (geom)
          glAttachShader(prog, geom);
-#endif
       glAttachShader(prog, frag);
 
       glLinkProgram(prog);
@@ -251,7 +199,6 @@ namespace GL
       if (!prog)
          progs[current_permutation] = prog = compile_shaders();
 
-      bind_uniforms();
       glUseProgram(prog);
       active = true;
    }

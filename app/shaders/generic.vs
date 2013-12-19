@@ -1,4 +1,4 @@
-uniform GlobalVertexData
+layout(binding = GLOBAL_VERTEX_DATA) uniform GlobalVertexData
 {
    mat4 vp;
    mat4 view;
@@ -19,7 +19,7 @@ layout(location = TEXCOORD) in vec2 aTexCoord;
 #if INSTANCED
 layout(location = MODEL_INSTANCED) in mat4 aModel; // Instanced arrays
 #else
-uniform ModelTransform
+layout(binding = MODEL_TRANSFORM) uniform ModelTransform
 {
    mat4 transform;
 } model;

@@ -1,4 +1,4 @@
-uniform GlobalVertexData
+layout(binding = 0) uniform GlobalVertexData
 {
    mat4 vp;
    mat4 view;

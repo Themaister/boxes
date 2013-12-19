@@ -1,4 +1,4 @@
-uniform GlobalFragmentData
+layout(binding = GLOBAL_FRAGMENT_DATA) uniform GlobalFragmentData
 {
    vec4 camera_pos;
    vec4 light_pos;
@@ -6,7 +6,7 @@ uniform GlobalFragmentData
    vec4 light_ambient;
 } global_frag;
 
-uniform Material
+layout(binding = MATERIAL) uniform Material
 {
    vec4 ambient;
    vec4 diffuse;

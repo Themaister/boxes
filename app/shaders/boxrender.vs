@@ -1,4 +1,4 @@
-uniform GlobalVertexData
+layout(binding = GLOBAL_VERTEX_DATA) uniform GlobalVertexData
 {
    mat4 vp;
    mat4 view;
@@ -15,7 +15,7 @@ uniform GlobalVertexData
 layout(location = VERTEX) in vec3 aVertex;
 layout(location = NORMAL) in vec3 aNormal;
 layout(location = TEXCOORD) in vec2 aTexCoord;
-layout(rgba32f) uniform readonly image1D uImage;
+layout(location = 3) in vec4 aPos;
 
 out VertexData
 {
@@ -26,7 +26,7 @@ out VertexData
 
 void main()
 {
-   vec4 world = vec4(aVertex + imageLoad(uImage, gl_InstanceID).xyz, 1.0);
+   vec4 world = vec4(aVertex + aPos.xyz, 1.0);
 
    gl_Position = global_vert.vp * world;
 

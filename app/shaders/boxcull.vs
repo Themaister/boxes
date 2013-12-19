@@ -1,4 +1,4 @@
-uniform GlobalVertexData
+layout(binding = GLOBAL_VERTEX_DATA) uniform GlobalVertexData
 {
    mat4 vp;
    mat4 view;
@@ -15,7 +15,11 @@ uniform GlobalVertexData
 layout(location = VERTEX) in vec4 aPoint;
 
 layout(binding = 0, offset = 4) uniform atomic_uint lod0_cnt; // Outputs to instance variable.
-layout(rgba32f) uniform writeonly image1D uImage;
+
+layout(binding = 0) buffer InstanceData
+{
+   vec4 pos[];
+} culled;
 
 void main()
 {
@@ -26,6 +30,6 @@ void main()
          return;
 
    uint counter = atomicCounterIncrement(lod0_cnt);
-   imageStore(uImage, int(counter), aPoint);
+   culled.pos[counter] = aPoint;
 }
 
