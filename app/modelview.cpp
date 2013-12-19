@@ -39,7 +39,7 @@ class Scene
             if (!mesh.material.diffuse_map.empty())
             {
                draw->use_diffuse = true;
-               draw->tex.load_texture_2d({Texture::Texture2D,
+               draw->tex.load_texture({Texture::Texture2D,
                      { mesh.material.diffuse_map },
                      true });
             }
@@ -50,8 +50,6 @@ class Scene
             drawables.push_back(move(draw));
          }
 
-         shader.set_samplers({{ "Diffuse", 0 }});
-         shader.set_uniform_buffers({{ "ModelTransform", Shader::ModelTransform }, { "Material", Shader::Material }});
          shader.reserve_define("DIFFUSE_MAP", 1);
          shader.reserve_define("INSTANCED", 1);
          shader.set_define("INSTANCED", 0);
@@ -289,7 +287,7 @@ class ModelViewApp : public LibretroGLApplication
 
       void get_context_version(unsigned& major, unsigned& minor) const override
       {
-         major = 3;
+         major = 4;
          minor = 3;
       }
 
@@ -306,7 +304,7 @@ class ModelViewApp : public LibretroGLApplication
 
          scene.init();
 
-         skybox.tex.load_texture_2d({Texture::TextureCube, {
+         skybox.tex.load_texture({Texture::TextureCube, {
                   "app/xpos.png",
                   "app/xneg.png",
                   "app/ypos.png",
@@ -315,8 +313,6 @@ class ModelViewApp : public LibretroGLApplication
                   "app/zneg.png",
                }, true});
          skybox.shader.init("app/shaders/skybox.vs", "app/shaders/skybox.fs");
-         skybox.shader.set_samplers({{ "skybox", 0 }});
-         skybox.shader.set_uniform_buffers({{ "ModelTransform", 2 }});
          vector<int8_t> vertices = { -1, -1, 1, -1, -1, 1, 1, 1 };
          skybox.vertex.init(GL_ARRAY_BUFFER, 8, Buffer::None, vertices.data());
          skybox.arrays.setup({{Shader::VertexLocation, 2, GL_BYTE, GL_FALSE, 0, 0}}, { &skybox.vertex }, nullptr);

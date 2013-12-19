@@ -22,7 +22,7 @@ in VertexData
 } fin;
 
 #if DIFFUSE_MAP
-layout(location = 0) uniform sampler2D Diffuse;
+layout(binding = 0) uniform sampler2D Diffuse;
 #endif
 
 out vec4 FragColor;

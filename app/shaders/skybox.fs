@@ -6,7 +6,7 @@ layout(binding = GLOBAL_FRAGMENT_DATA) uniform GlobalFragmentData
    vec4 light_ambient;
 };
 
-layout(location = 0) uniform samplerCube skybox;
+layout(binding = 0) uniform samplerCube skybox;
 
 in vec3 vDirection;
 out vec4 FragColor;
