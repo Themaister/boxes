@@ -21,13 +21,9 @@ class Scene
       void init()
       {
          auto mesh = create_mesh_box();
-         mesh.arrays.push_back({ Shader::ModelInstancedCol0, 4, GL_FLOAT, GL_FALSE, sizeof(mat4), 0 * sizeof(vec4), 1, 1 });
-         mesh.arrays.push_back({ Shader::ModelInstancedCol1, 4, GL_FLOAT, GL_FALSE, sizeof(mat4), 1 * sizeof(vec4), 1, 1 });
-         mesh.arrays.push_back({ Shader::ModelInstancedCol2, 4, GL_FLOAT, GL_FALSE, sizeof(mat4), 2 * sizeof(vec4), 1, 1 });
-         mesh.arrays.push_back({ Shader::ModelInstancedCol3, 4, GL_FLOAT, GL_FALSE, sizeof(mat4), 3 * sizeof(vec4), 1, 1 });
-         drawable.arrays.setup(mesh.arrays, { &drawable.vert, &drawable.model }, &drawable.elem);
-         drawable.vert.init(GL_ARRAY_BUFFER, mesh.vbo, Buffer::None);
-         drawable.elem.init(GL_ELEMENT_ARRAY_BUFFER, mesh.ibo, Buffer::None);
+         render_array.setup(mesh.arrays, { &vert }, &elem);
+         vert.init(GL_ARRAY_BUFFER, mesh.vbo, Buffer::None);
+         elem.init(GL_ELEMENT_ARRAY_BUFFER, mesh.ibo, Buffer::None);
          drawable.indices = mesh.ibo.size();
 
          MaterialBuffer material(mesh.material);
@@ -44,14 +40,17 @@ class Scene
          else
             drawable.use_diffuse = false;
 
-         drawable.shader = &shader;
+         cull_shader.set_samplers({{ "uImage", 0 }});
+         cull_shader.init("app/shaders/boxcull.vs", "app/shaders/boxcull.fs");
 
-         shader.set_samplers({{ "Diffuse", 0 }});
-         shader.set_uniform_buffers({{ "ModelTransform", Shader::ModelTransform }, { "Material", Shader::Material }});
-         shader.reserve_define("DIFFUSE_MAP", 1);
-         shader.reserve_define("INSTANCED", 1);
-         shader.set_define("INSTANCED", 0);
-         shader.init("app/shaders/generic.vs", "app/shaders/generic.fs");
+         render_shader.set_samplers({{ "Diffuse", 1 }, { "uImage", 0 }});
+         render_shader.set_uniform_buffers({{ "Material", Shader::Material }});
+         render_shader.reserve_define("DIFFUSE_MAP", 1);
+         render_shader.init("app/shaders/boxrender.vs", "app/shaders/boxrender.fs");
+
+         drawable.cull_shader = &cull_shader;
+         drawable.render_shader = &render_shader;
+         drawable.render_array = &render_array;
       }
 
       void render(const mat4& view_proj)
@@ -66,20 +65,22 @@ class Scene
    private:
       struct Drawable : Renderable
       {
-         Shader *shader;
-         VertexArray arrays;
-         Buffer vert;
-         Buffer elem;
+         Shader *cull_shader;
+         Shader *render_shader;
+         VertexArray *render_array;
+         VertexArray cull_array;
          size_t indices;
 
          Buffer model;
          Buffer material;
+         Buffer indirect;
+         Texture culled_tex;
 
          Texture tex;
          bool use_diffuse;
          float cache_depth;
 
-         vector<mat4> blocks;
+         vector<vec4> blocks;
          AABB aabb;
 
          Drawable()
@@ -87,10 +88,12 @@ class Scene
             for (int z = -100; z <= 100; z += 4)
                for (int y = -100; y <= 100; y += 4)
                   for (int x = -100; x <= 100; x += 4)
-                     blocks.push_back(translate(mat4(1.0f), vec3(x, y, z)));
+                     blocks.push_back(vec4(vec3(x, y, z), 1.4143f));
             aabb = AABB(vec3(-101), vec3(101));
 
-            model.init(GL_ARRAY_BUFFER, blocks.size() * sizeof(mat4), Buffer::None, blocks.data());
+            model.init(GL_ARRAY_BUFFER, blocks.size() * sizeof(vec4), Buffer::None, blocks.data());
+            cull_array.setup({{ Shader::VertexLocation, 4, GL_FLOAT, GL_FALSE }}, { &model }, nullptr);
+            culled_tex.init({Texture::Texture1D, 1, GL_RGBA32F, unsigned(blocks.size()) });
          }
 
          inline void set_cache_depth(float depth) override { cache_depth = depth; }
@@ -101,8 +104,6 @@ class Scene
             if (&o == this)
                return false;
 
-            if (shader != o.shader)
-               return true;
             if (use_diffuse && !o.use_diffuse)
                return true;
             if (cache_depth < o.cache_depth)
@@ -113,38 +114,78 @@ class Scene
 
          inline void render()
          {
-            Sampler::bind(0, Sampler::TrilinearClamp);
-            shader->use();
+            // Reset indirect draw buffer.
+            struct IndirectCommand
+            {
+               GLuint count;
+               GLuint primCount;
+               GLuint firstIndex;
+               GLuint baseVertex;
+               GLuint baseInstance;
+            };
+            IndirectCommand command = { GLuint(indices) }; // primCount is incremented by shaders.
+            indirect.init(GL_DRAW_INDIRECT_BUFFER, sizeof(command), Buffer::Copy, &command);
 
-            arrays.bind();
+            cull_shader->use();
+            cull_array.bind();
+
+            // Frustum cull instanced cubes (points) and update indirect draw buffer.
+            culled_tex.bind_image(0, Texture::WriteOnly);
+            indirect.bind_indexed(GL_ATOMIC_COUNTER_BUFFER, 0); // Instance count is written here.
+            glEnable(GL_RASTERIZER_DISCARD); // Only run vertex shader stage.
+            glDrawArrays(GL_POINTS, 0, blocks.size());
+            glDisable(GL_RASTERIZER_DISCARD);
+            indirect.unbind_indexed(GL_ATOMIC_COUNTER_BUFFER, 0);
+
+            // GL must wait until previous shader has updated data.
+            glMemoryBarrier(GL_COMMAND_BARRIER_BIT | GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+
+#if 0
+            const IndirectCommand* cmd;
+            if (indirect.map(cmd))
+            {
+               Log::log("Count: %u, PrimCount: %u.", cmd->count, cmd->primCount); 
+               indirect.unmap();
+            }
+#endif
+
+            // Render instanced data.
+            render_shader->use();
+            render_array->bind();
+            Sampler::bind(1, Sampler::TrilinearClamp);
+            culled_tex.bind_image(0, Texture::ReadOnly);
+
             material.bind();
-
-            shader->set_define("INSTANCED", 1);
             if (use_diffuse)
             {
-               tex.bind(0);
-               shader->set_define("DIFFUSE_MAP", 1);
+               tex.bind(1);
+               render_shader->set_define("DIFFUSE_MAP", 1);
             }
             else
-               shader->set_define("DIFFUSE_MAP", 0);
+               render_shader->set_define("DIFFUSE_MAP", 0);
 
-            glDrawElementsInstanced(GL_TRIANGLES, indices, GL_UNSIGNED_INT, nullptr, blocks.size());
-
-            arrays.unbind();
-            model.unbind();
-            material.unbind();
+            indirect.bind();
+            glDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, nullptr);
+            indirect.unbind();
 
             if (use_diffuse)
-               tex.unbind(0);
+               tex.unbind(1);
 
-            Sampler::unbind(0, Sampler::TrilinearClamp);
-            shader->unbind();
+            Sampler::unbind(1, Sampler::TrilinearClamp);
+            render_shader->unbind();
+            material.unbind();
+            culled_tex.unbind_image(1);
          }
       };
 
       Drawable drawable;
-      Shader shader;
+      Shader cull_shader;
+      Shader render_shader;
       RenderQueue queue;
+
+      Buffer vert;
+      Buffer elem;
+      VertexArray render_array;
 };
 
 class BoxesApp : public LibretroGLApplication
