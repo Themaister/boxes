@@ -87,11 +87,11 @@ class Scene
 
          Drawable()
          {
-            for (int z = -1000; z <= 1000; z += 16)
-               for (int y = -1000; y <= 1000; y += 16)
-                  for (int x = -1000; x <= 1000; x += 16)
+            for (int z = -4000; z <= 4000; z += 64)
+               for (int y = -4000; y <= 4000; y += 64)
+                  for (int x = -4000; x <= 4000; x += 64)
                      blocks.push_back(vec4(vec3(x, y, z), 1.4143f));
-            aabb = AABB(vec3(-1001), vec3(1001));
+            aabb = AABB(vec3(-4001), vec3(4001));
 
             model.init(GL_ARRAY_BUFFER, blocks.size() * sizeof(vec4), Buffer::None, blocks.data());
             cull_array.setup({{ Shader::VertexLocation, 4, GL_FLOAT, GL_FALSE }}, { &model }, nullptr);
