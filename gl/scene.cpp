@@ -5,9 +5,9 @@ using namespace glm;
 
 namespace GL
 {
-   void RenderQueue::set_view_proj(const mat4& vp)
+   void RenderQueue::set_frustum(const Frustum& frustum)
    {
-      view_proj = vp;
+      this->frustum = frustum;
    }
 
    void RenderQueue::begin()
@@ -20,14 +20,11 @@ namespace GL
       // Frustum culling.
       draw_list.erase(remove_if(std::begin(draw_list), std::end(draw_list), [this](Renderable* draw) -> bool {
                auto aabb = draw->get_aabb();
-               auto model = draw->get_model_transform();
 
-               // Distance in clip space from near plane, plane eq (0, 0, 1, 1).
-               auto c = aabb.transform(model).center();
-               auto clip = view_proj * vec4(c.x, c.y, c.z, 1.0f);
-               draw->set_cache_depth(clip.z + clip.w);
+               BoundingSphere sphere{aabb};
+               draw->set_cache_depth(dot(frustum.planes[0], vec4(sphere.pos_radius.xyz, 1.0f)));
 
-               return !aabb.intersects_clip_space(view_proj * model);
+               return !frustum.intersects_with_sphere(sphere);
             }),
             std::end(draw_list));
 
@@ -37,7 +34,7 @@ namespace GL
             return a->compare_less(*b);
          });
 
-      //Log::log("%zu draw calls.", draw_list.size());
+      Log::log("%zu draw calls.", draw_list.size());
    }
 
    const RenderQueue::DrawList& RenderQueue::get_draw_list() const

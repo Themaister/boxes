@@ -9,6 +9,7 @@ uniform GlobalVertexData
    mat4 inv_view_nt;
    mat4 inv_proj;
    vec4 camera_pos;
+   vec4 frustum[6];
 } global_vert;
 
 layout(location = VERTEX) in vec3 aVertex;

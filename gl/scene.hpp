@@ -3,6 +3,7 @@
 
 #include "global.hpp"
 #include "mesh.hpp"
+#include "aabb.hpp"
 #include <functional>
 #include <cstdint>
 #include <vector>
@@ -15,7 +16,6 @@ namespace GL
    {
       virtual void set_cache_depth(float depth) = 0;
       virtual const AABB& get_aabb() const = 0;
-      virtual glm::mat4 get_model_transform() const = 0;
       virtual bool compare_less(const Renderable& other) const = 0;
       virtual void render() = 0;
    };
@@ -25,7 +25,7 @@ namespace GL
       public:
          using DrawList = std::vector<Renderable*>;
 
-         void set_view_proj(const glm::mat4& vp);
+         void set_frustum(const Frustum& frustum);
          void begin();
          void end();
          void push(Renderable* elem);
@@ -34,7 +34,7 @@ namespace GL
 
       private:
          DrawList draw_list;
-         glm::mat4 view_proj;
+         Frustum frustum;
    };
 }
 

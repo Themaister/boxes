@@ -18,6 +18,7 @@ namespace GL
             None = 0,
             WriteOnly = 1,
             ReadOnly = 2,
+            Copy = 3
          };
 
          void init(GLenum target, GLsizei size, GLuint flags, const void *initial_data = nullptr, GLuint index = 0);
@@ -48,6 +49,11 @@ namespace GL
          void bind();
          void unbind();
 
+         void bind_indexed(GLenum target, unsigned index);
+         void unbind_indexed(GLenum target, unsigned index);
+         void bind(GLenum target);
+         void unbind(GLenum target);
+
       private:
          bool alive = false;
          GLenum target = 0;
@@ -59,7 +65,9 @@ namespace GL
          std::vector<uint8_t> temp;
 
          static GLenum gl_usage_from_flags(GLuint flags);
+         static bool is_indexed(GLenum type);
          void init_buffer(const void *initial_data);
+
    };
 }
 

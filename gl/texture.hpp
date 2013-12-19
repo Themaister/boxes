@@ -61,18 +61,27 @@ namespace GL
    class Texture : public ContextListener, public ContextResource
    {
       public:
-         Texture() { init(); }
+         Texture() { ContextListener::init(); }
          ~Texture() { deinit(); }
 
          enum Type
          {
             TextureNone = 0,
+            Texture1D,
+            Texture1DArray,
             Texture2D,
             Texture2DArray,
             TextureCube
          };
 
-         struct Desc2D
+         enum StorageAccess
+         {
+            WriteOnly = 0,
+            ReadOnly = 1,
+            ReadWrite = 2
+         };
+
+         struct Desc
          {
             Type type;
             unsigned levels;
@@ -91,23 +100,26 @@ namespace GL
 
          static unsigned size_to_miplevels(unsigned width, unsigned height);
 
-         void init_2d(const Desc2D& desc);
-         void load_texture_2d(const Resource& res);
+         void init(const Desc& desc);
+         void load_texture(const Resource& res);
 
          void bind(unsigned unit);
          void unbind(unsigned unit);
 
+         void bind_image(unsigned unit, StorageAccess access, unsigned level = 0, unsigned layer = 0);
+         void unbind_image(unsigned unit);
+
          void reset() override;
          void destroyed() override;
 
-         const Desc2D& get_desc() const { return desc; }
+         const Desc& get_desc() const { return desc; }
          friend class Framebuffer;
 
       private:
          GLuint id = 0;
          GLenum texture_type = 0;
 
-         Desc2D desc;
+         Desc desc;
          Resource res;
 
          void setup();

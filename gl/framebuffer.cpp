@@ -110,6 +110,10 @@ namespace GL
 
          switch (desc.type)
          {
+            case Texture::Texture1D:
+            case Texture::Texture1DArray:
+               throw runtime_error("Attaching 1D textures not supported!");
+
             case Texture::Texture2D:
                glFramebufferTexture2D(GL_FRAMEBUFFER, attachment,
                      GL_TEXTURE_2D, tex.tex->id, tex.level);

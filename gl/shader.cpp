@@ -56,7 +56,7 @@ namespace GL
 #ifdef HAVE_OPENGLES3
          "#version 300 es\nlayout(std140) uniform;\n",
 #else
-         "#version 330\nlayout(std140) uniform;\n",
+         "#version 420\nlayout(std140) uniform;\n",
 #endif
          "#define VERTEX 0\n",
          "#define TEXCOORD 1\n",
@@ -138,6 +138,9 @@ namespace GL
    {
       GLuint prog = glCreateProgram();
       GLuint vert = glCreateShader(GL_VERTEX_SHADER);
+#ifndef HAVE_OPENGLES3
+      GLuint geom = !source_gs.empty() ? glCreateShader(GL_GEOMETRY_SHADER) : 0;
+#endif
       GLuint frag = glCreateShader(GL_FRAGMENT_SHADER);
 
       auto defines = current_defines();
@@ -149,12 +152,17 @@ namespace GL
 #endif
 
       compile_shader(vert, source_vs, defines);
+      compile_shader(frag, source_fs, defines);
 #ifdef HAVE_OPENGLES3
       defines.insert(begin(defines), "precision highp float;\n");
 #endif
-      compile_shader(frag, source_fs, defines);
+      compile_shader(geom, source_gs, defines);
 
       glAttachShader(prog, vert);
+#ifndef HAVE_OPENGLES3
+      if (geom)
+         glAttachShader(prog, geom);
+#endif
       glAttachShader(prog, frag);
 
       glLinkProgram(prog);
@@ -224,10 +232,11 @@ namespace GL
       }
    }
 
-   void Shader::init(const string& path_vs, const string& path_fs)
+   void Shader::init(const string& path_vs, const string& path_fs, const string& path_gs)
    {
       source_vs = File::read_string(asset_path(path_vs));
       source_fs = File::read_string(asset_path(path_fs));
+      source_gs = !path_gs.empty() ? File::read_string(asset_path(path_fs)) : "";
 
       if (alive)
          for (auto& prog : progs)

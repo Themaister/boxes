@@ -46,18 +46,50 @@ namespace GL
       glBindBuffer(target, 0);
    }
 
+   bool Buffer::is_indexed(GLenum type)
+   {
+      switch (type)
+      {
+         case GL_UNIFORM_BUFFER:
+         case GL_ATOMIC_COUNTER_BUFFER:
+            return true;
+         default:
+            return false;
+      }
+   }
+
+   void Buffer::bind_indexed(GLenum target, unsigned index)
+   {
+      glBindBufferBase(target, index, id);
+   }
+
+   void Buffer::unbind_indexed(GLenum target, unsigned index)
+   {
+      glBindBufferBase(target, index, 0);
+   }
+
+   void Buffer::bind(GLenum target)
+   {
+      glBindBuffer(target, id);
+   }
+
+   void Buffer::unbind(GLenum target)
+   {
+      glBindBuffer(target, 0);
+   }
+
    void Buffer::bind()
    {
-      if (target == GL_UNIFORM_BUFFER)
-         glBindBufferBase(GL_UNIFORM_BUFFER, index, id);
+      if (is_indexed(target))
+         glBindBufferBase(target, index, id);
       else
          glBindBuffer(target, id);
    }
 
    void Buffer::unbind()
    {
-      if (target == GL_UNIFORM_BUFFER)
-         glBindBufferBase(GL_UNIFORM_BUFFER, index, 0);
+      if (is_indexed(target))
+         glBindBufferBase(target, index, 0);
       else
          glBindBuffer(target, 0);
    }
@@ -68,6 +100,7 @@ namespace GL
       {
          case WriteOnly: return GL_DYNAMIC_DRAW;
          case ReadOnly: return GL_DYNAMIC_READ;
+         case Copy: return GL_DYNAMIC_COPY;
          default: return GL_STATIC_DRAW;
       }
    }

@@ -3,25 +3,13 @@
 
 #include "global.hpp"
 #include "vertex_array.hpp"
+#include "aabb.hpp"
 #include <cstdint>
 #include <vector>
 #include <string>
 
 namespace GL
 {
-   struct AABB
-   {
-      AABB() = default;
-      AABB(const glm::vec3& minimum, const glm::vec3& maximum);
-      glm::vec3 base;
-      glm::vec3 offset;
-
-      glm::vec3 center() const;
-      AABB transform(const glm::mat4& mat) const;
-      bool intersects_clip_space(const glm::mat4& view_proj) const;
-      glm::vec3 corner(unsigned corner) const;
-   };
-
    struct Material
    {
       glm::vec3 ambient = glm::vec3(0.2f);

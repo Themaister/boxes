@@ -60,8 +60,7 @@ class Scene
 
       void render(const mat4& view_proj)
       {
-
-         queue.set_view_proj(view_proj);
+         queue.set_frustum(Frustum(view_proj));
          queue.begin();
          for (auto& draw : drawables)
             queue.push(draw.get());
@@ -88,7 +87,6 @@ class Scene
 
          inline void set_cache_depth(float depth) override { cache_depth = depth; }
          inline const AABB& get_aabb() const override { return aabb; }
-         inline mat4 get_model_transform() const override { return mat4(1.0f); }
          inline bool compare_less(const Renderable& o_tmp) const override
          {
             const Drawable& o = static_cast<const Drawable&>(o_tmp);
@@ -197,6 +195,7 @@ class ModelViewApp : public LibretroGLApplication
          global.inv_vp = inverse(global.vp);
 
          global.camera_pos = vec4(player_pos.x, player_pos.y, player_pos.z, 0.0);
+         global.frustum = Frustum(global.vp);
 
          global_fragment.camera_pos = global.camera_pos;
          global_fragment.light_pos = vec4(0.0, 5.0, 0.0, 1.0);
@@ -343,6 +342,7 @@ class ModelViewApp : public LibretroGLApplication
          mat4 inv_view_nt;
          mat4 inv_proj;
          vec4 camera_pos;
+         Frustum frustum;
       };
 
       struct GlobalFragmentData

@@ -33,8 +33,6 @@ namespace GL
             Material = 3
          };
 
-         enum { MaxInstances = 4 * 1024 };
-
          struct Sampler
          {
             std::string name;
@@ -49,7 +47,11 @@ namespace GL
 
          void set_samplers(const std::vector<Sampler>& samplers);
          void set_uniform_buffers(const std::vector<UniformBuffer>& uniform_buffers);
-         void init(const std::string& path_vs, const std::string& path_fs);
+         void init(const std::string& path_vs, const std::string& path_fs
+#ifndef HAVE_OPENGLES3
+               , const std::string& path_gs = ""
+#endif
+               );
 
          void use();
          void unbind();
@@ -80,7 +82,7 @@ namespace GL
          static unsigned total_global_bits;
          static std::vector<Define> global_defines;
 
-         std::string source_vs, source_fs;
+         std::string source_vs, source_fs, source_gs;
          bool alive = false;
 
          unsigned compile_shaders();

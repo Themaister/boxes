@@ -147,6 +147,26 @@ namespace GL
       glActiveTexture(GL_TEXTURE0);
    }
 
+   void Texture::bind_image(unsigned unit, StorageAccess access, unsigned level, unsigned layer)
+   {
+      GLenum acc;
+      switch (access)
+      {
+         case WriteOnly: acc = GL_WRITE_ONLY; break;
+         case ReadOnly: acc = GL_READ_ONLY; break;
+         case ReadWrite: acc = GL_READ_WRITE; break;
+         default: acc = 0; break;
+      }
+      glBindImageTexture(unit, id, level,
+            GL_FALSE, layer, acc, desc.internal_format);
+   }
+
+   void Texture::unbind_image(unsigned unit)
+   {
+      glBindImageTexture(unit, 0, 0,
+            GL_FALSE, 0, GL_READ_ONLY, GL_R8);
+   }
+
    void Texture::reset()
    {
       glGenTextures(1, &id);
@@ -161,12 +181,13 @@ namespace GL
       id = 0;
    }
 
-   void Texture::init_2d(const Desc2D& desc2d)
+   void Texture::init(const Desc& desc_tex)
    {
-      desc = desc2d;
+      desc = desc_tex;
       if (!desc.levels)
          desc.levels = size_to_miplevels(desc.width, desc.height);
       texture_type = type_to_gl(desc.type);
+      res = {};
 
       if (id)
       {
@@ -194,6 +215,10 @@ namespace GL
 
       switch (res.type)
       {
+         case Texture1D:
+         case Texture1DArray:
+            throw std::logic_error("Uploading 1D or 1DArray textures not supported!");
+
          case TextureCube:
             if (res.paths.size() != 6)
                throw std::logic_error("Cube map must have 6 textures!");
@@ -280,7 +305,7 @@ namespace GL
          glGenerateMipmap(texture_type);
    }
 
-   void Texture::load_texture_2d(const Resource& res)
+   void Texture::load_texture(const Resource& res)
    {
       this->res = res;
 
@@ -315,6 +340,16 @@ namespace GL
 
       switch (desc.type)
       {
+         case Texture1D:
+            glTexStorage1D(texture_type,
+                  desc.levels, desc.internal_format, desc.width);
+            break;
+
+         case Texture1DArray:
+            glTexStorage2D(texture_type,
+                  desc.levels, desc.internal_format, desc.width, desc.array_size);
+            break;
+
          case Texture2D:
          case TextureCube:
             glTexStorage2D(texture_type,
@@ -340,6 +375,10 @@ namespace GL
    {
       switch (type)
       {
+         case Texture1D:
+            return GL_TEXTURE_1D;
+         case Texture1DArray:
+            return GL_TEXTURE_1D_ARRAY;
          case Texture2D:
             return GL_TEXTURE_2D;
          case Texture2DArray:

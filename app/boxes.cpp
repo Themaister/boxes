@@ -4,6 +4,7 @@
 #include <gl/vertex_array.hpp>
 #include <gl/texture.hpp>
 #include <gl/mesh.hpp>
+#include <gl/aabb.hpp>
 #include <gl/framebuffer.hpp>
 #include <gl/scene.hpp>
 #include <memory>
@@ -36,7 +37,7 @@ class Scene
          if (!mesh.material.diffuse_map.empty())
          {
             drawable.use_diffuse = true;
-            drawable.tex.load_texture_2d({Texture::Texture2D,
+            drawable.tex.load_texture({Texture::Texture2D,
                   { mesh.material.diffuse_map },
                   true });
          }
@@ -55,8 +56,7 @@ class Scene
 
       void render(const mat4& view_proj)
       {
-         drawable.view_proj = view_proj;
-         queue.set_view_proj(view_proj);
+         queue.set_frustum(Frustum(view_proj));
          queue.begin();
          queue.push(&drawable);
          queue.end();
@@ -81,7 +81,6 @@ class Scene
 
          vector<mat4> blocks;
          AABB aabb;
-         mat4 view_proj;
 
          Drawable()
          {
@@ -96,7 +95,6 @@ class Scene
 
          inline void set_cache_depth(float depth) override { cache_depth = depth; }
          inline const AABB& get_aabb() const override { return aabb; }
-         inline mat4 get_model_transform() const override { return mat4(1.0f); }
          inline bool compare_less(const Renderable& o_tmp) const override
          {
             const Drawable& o = static_cast<const Drawable&>(o_tmp);
@@ -174,12 +172,12 @@ class BoxesApp : public LibretroGLApplication
 
       string get_application_name() const override
       {
-         return "ModelView";
+         return "Boxes";
       }
 
       string get_application_name_short() const override
       {
-         return "modelview";
+         return "boxes";
       }
 
       vector<Resolution> get_resolutions() const override
@@ -205,6 +203,7 @@ class BoxesApp : public LibretroGLApplication
          global.inv_vp = inverse(global.vp);
 
          global.camera_pos = vec4(player_pos.x, player_pos.y, player_pos.z, 0.0);
+         global.frustum = Frustum(global.vp);
 
          global_fragment.camera_pos = global.camera_pos;
          global_fragment.light_pos = vec4(50.0, 50.0, 0.0, 1.0);
@@ -298,8 +297,8 @@ class BoxesApp : public LibretroGLApplication
 
       void get_context_version(unsigned& major, unsigned& minor) const override
       {
-         major = 3;
-         minor = 3;
+         major = 4;
+         minor = 2;
       }
 
       void load() override
@@ -315,7 +314,7 @@ class BoxesApp : public LibretroGLApplication
 
          scene.init();
 
-         skybox.tex.load_texture_2d({Texture::TextureCube, {
+         skybox.tex.load_texture({Texture::TextureCube, {
                   "app/xpos.png",
                   "app/xneg.png",
                   "app/ypos.png",
@@ -351,6 +350,7 @@ class BoxesApp : public LibretroGLApplication
          mat4 inv_view_nt;
          mat4 inv_proj;
          vec4 camera_pos;
+         Frustum frustum;
       };
 
       struct GlobalFragmentData
