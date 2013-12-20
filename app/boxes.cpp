@@ -108,7 +108,7 @@ class Scene
          Drawable()
          {
             int base = 64;
-            int scale = 16;
+            int scale = 32;
             for (int z = -base; z < base; z++)
                for (int y = -base; y < base; y++)
                   for (int x = -base; x < base; x++)

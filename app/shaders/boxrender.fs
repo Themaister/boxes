@@ -39,14 +39,10 @@ void main()
    float light_mod = 0.5;
 
    vec3 specular = vec3(0.0);
-   if (ndotl > 0.0)
-   {
-      vec3 half_vec = normalize(vLight + vEye);
-      float blinn_phong_mod = dot(half_vec, normal);
-      // Avoid pow(0, 0) which is undefined.
-      if (blinn_phong_mod > 0.0)
-         specular = light_mod * global_frag.light_color.rgb * material.specular.xyz * pow(blinn_phong_mod, material.specular_power);
-   }
+   // Avoid pow(0, 0) which is undefined.
+   vec3 half_vec = normalize(vLight + vEye);
+   float blinn_phong_mod = max(dot(half_vec, normal), 0.001);
+   specular = light_mod * global_frag.light_color.rgb * material.specular.xyz * pow(blinn_phong_mod, material.specular_power);
 
 #if DIFFUSE_MAP
    vec4 diffuse_term = texture(Diffuse, fin.tex);
