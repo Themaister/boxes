@@ -13,7 +13,7 @@ layout(binding = GLOBAL_VERTEX_DATA) uniform GlobalVertexData
    vec4 camera_pos;
    vec4 camera_vel;
    vec4 frustum[6];
-   vec4 time;
+   float delta_time;
 } global_vert;
 
 layout(binding = 0, offset = 4) uniform atomic_uint lod0_cnt; // Outputs to instance variable.
@@ -63,8 +63,8 @@ void main()
    float dist_len_sq = dot(dist, dist);
 
    vec3 accel_neg = 500.0 * -normalize(dist) / (dot(dist, dist) + 0.001);
-   point.xyz += global_vert.time.x * vel.xyz;
-   vel.xyz += global_vert.time.x * accel_neg;
+   point.xyz += global_vert.delta_time * vel.xyz;
+   vel.xyz += global_vert.delta_time * accel_neg;
 
    vec3 rel_vel = vel.xyz - global_vert.camera_vel.xyz; // Relative velocity to camera.
    if (dist_len_sq < 10.0 && dot(rel_vel, dist) < 0.0)

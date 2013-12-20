@@ -330,7 +330,7 @@ class BoxesApp : public LibretroGLApplication
             right_walk_dir * vec3(analog.x * 0.25f);
 
          player_pos += velocity * mod_speed * delta;
-         global.time = vec4(delta);
+         global.delta_time = delta;
          global.camera_vel = vec4(velocity * mod_speed, 0.0f);
          global_fragment.camera_vel = vec4(velocity * mod_speed, 0.0f);
          update_global_data();
@@ -431,7 +431,7 @@ class BoxesApp : public LibretroGLApplication
          vec4 camera_pos;
          vec4 camera_vel;
          Frustum frustum;
-         vec4 time;
+         float delta_time;
       };
 
       struct GlobalFragmentData
