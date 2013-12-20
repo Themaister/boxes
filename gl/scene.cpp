@@ -34,7 +34,7 @@ namespace GL
             return a->compare_less(*b);
          });
 
-      Log::log("%zu draw calls.", draw_list.size());
+      //Log::log("%zu draw calls.", draw_list.size());
    }
 
    const RenderQueue::DrawList& RenderQueue::get_draw_list() const

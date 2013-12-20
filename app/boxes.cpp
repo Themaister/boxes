@@ -21,23 +21,30 @@ class Scene
       void init()
       {
          auto mesh = create_mesh_box();
+         auto mesh_fine = load_meshes_obj("app/mesh.obj");
 
+         mesh_fine[0].arrays.push_back({3, 4, GL_FLOAT, GL_FALSE, 0, 0, 1, 1});
          mesh.arrays.push_back({3, 4, GL_FLOAT, GL_FALSE, 0, 0, 1, 1});
-         render_array[0].setup(mesh.arrays, { &vert, &culled_buffer[0] }, &elem);
+         render_array[0].setup(mesh_fine[0].arrays, { &vert_fine, &culled_buffer[0] }, &elem_fine);
          render_array[1].setup(mesh.arrays, { &vert, &culled_buffer[1] }, &elem);
          render_array[2].setup(mesh.arrays, { &vert, &culled_buffer[2] }, &elem);
 
+         vert_fine.init(GL_ARRAY_BUFFER, mesh_fine[0].vbo, Buffer::None);
+         elem_fine.init(GL_ELEMENT_ARRAY_BUFFER, mesh_fine[0].ibo, Buffer::None);
          vert.init(GL_ARRAY_BUFFER, mesh.vbo, Buffer::None);
          elem.init(GL_ELEMENT_ARRAY_BUFFER, mesh.ibo, Buffer::None);
+
+         drawable.indices_fine = mesh_fine[0].ibo.size();
          drawable.indices = mesh.ibo.size();
 
-         mesh.material.specular_power = 10.0f;
-         mesh.material.specular = vec3(0.5f);
-         mesh.material.diffuse = vec3(0.2f, 0.2f, 0.8f);
-         MaterialBuffer material(mesh.material);
+#if 0
+         mesh_fine[0].material.specular_power = 10.0f;
+         mesh_fine[0].material.specular = vec3(20.0f);
+         mesh_fine[0].material.diffuse = vec3(0.2f);
+#endif
+         MaterialBuffer material(mesh_fine[0].material);
          drawable.material[0].init(GL_UNIFORM_BUFFER, sizeof(material),
                Buffer::None, &material, Shader::Material);
-         mesh.material.specular = vec3(0.0f);
 
          mesh.material.diffuse = vec3(0.5f, 0.8f, 0.5f);
          material = mesh.material;
@@ -88,6 +95,7 @@ class Scene
          Shader *render_shader;
          VertexArray *render_array;
          size_t indices;
+         size_t indices_fine;
 
          Buffer model;
          Buffer material[3];
@@ -144,7 +152,7 @@ class Scene
                GLuint baseInstance;
             };
             IndirectCommand command[] = {
-               { GLuint(indices) }, // primCount is incremented by shaders.
+               { GLuint(indices_fine) }, // primCount is incremented by shaders.
                { GLuint(indices) },
                { GLuint(indices) },
             };
@@ -211,8 +219,8 @@ class Scene
       Shader render_shader;
       RenderQueue queue;
 
-      Buffer vert;
-      Buffer elem;
+      Buffer vert, vert_fine;
+      Buffer elem, elem_fine;
       Buffer culled_buffer[3];
       VertexArray render_array[3];
 };
@@ -276,7 +284,7 @@ class BoxesApp : public LibretroGLApplication
          global.frustum = Frustum(global.vp);
 
          global_fragment.camera_pos = global.camera_pos;
-         global_fragment.light_pos = vec4(50.0, 50.0, 0.0, 1.0);
+         global_fragment.light_pos = vec4(600.0, 600.0, 600.0, 1.0);
          global_fragment.light_color = vec4(1.0);
          global_fragment.light_ambient = vec4(0.2);
 
