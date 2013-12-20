@@ -37,11 +37,6 @@ class Scene
          drawable.indices_fine = mesh_fine[0].ibo.size();
          drawable.indices = mesh.ibo.size();
 
-#if 0
-         mesh_fine[0].material.specular_power = 10.0f;
-         mesh_fine[0].material.specular = vec3(20.0f);
-         mesh_fine[0].material.diffuse = vec3(0.2f);
-#endif
          MaterialBuffer material(mesh_fine[0].material);
          drawable.material[0].init(GL_UNIFORM_BUFFER, sizeof(material),
                Buffer::None, &material, Shader::Material);
@@ -113,7 +108,7 @@ class Scene
          Drawable()
          {
             int base = 64;
-            int scale = 8;
+            int scale = 16;
             for (int z = -base; z < base; z++)
                for (int y = -base; y < base; y++)
                   for (int x = -base; x < base; x++)
