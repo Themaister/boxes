@@ -36,7 +36,7 @@ void main()
 
    float ndotl = max(dot(vLight, normal), 0.0);
 
-   float light_mod = 50.0 / (1.0 + 0.25 * dot(light_dist, light_dist));
+   float light_mod = 0.5;
 
    vec3 specular = vec3(0.0);
    if (ndotl > 0.0)

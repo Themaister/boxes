@@ -54,7 +54,7 @@ namespace GL
    {
       vector<const GLchar*> gl_source = {
          "#version 430\nlayout(std140) uniform;\n",
-         "layout(std140) buffer;\n",
+         "layout(std430) buffer;\n",
          "#define GLOBAL_VERTEX_DATA 0\n",
          "#define GLOBAL_FRAGMENT_DATA 1\n",
          "#define MODEL_TRANSFORM 2\n",

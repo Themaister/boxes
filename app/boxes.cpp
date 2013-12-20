@@ -80,17 +80,21 @@ class Scene
          Texture tex;
          bool use_diffuse;
          float cache_depth;
+         unsigned size;
 
          vector<vec4> blocks;
          AABB aabb;
 
          Drawable()
          {
-            for (int z = -4000; z < 4000; z += 64)
-               for (int y = -4000; y < 4000; y += 64)
-                  for (int x = -4000; x < 4000; x += 64)
-                     blocks.push_back(vec4(vec3(x, y, z), 1.4143f));
-            aabb = AABB(vec3(-4001), vec3(4001));
+            int base = 64;
+            int scale = 8;
+            for (int z = -base; z < base; z++)
+               for (int y = -base; y < base; y++)
+                  for (int x = -base; x < base; x++)
+                     blocks.push_back(vec4(vec3(x, y, z) * vec3(scale), 1.4143f));
+            aabb = AABB(vec3(-base * scale - 1), vec3(base * scale + 1));
+            size = 2 * base / 4;
 
             model.init(GL_ARRAY_BUFFER, blocks.size() * sizeof(vec4), Buffer::None, blocks.data());
          }
@@ -122,7 +126,13 @@ class Scene
                GLuint baseVertex;
                GLuint baseInstance;
             };
-            IndirectCommand command = { GLuint(indices) }; // primCount is incremented by shaders.
+#if 0
+            IndirectCommand command[] = {
+               { GLuint(indices), 0, 0, 0, GLuint(blocks.size()) }, // primCount is incremented by shaders.
+               { GLuint(indices), 0, 0, 0, 0 },
+            };
+#endif
+            IndirectCommand command = { GLuint(indices) };
             indirect.init(GL_DRAW_INDIRECT_BUFFER, sizeof(command), Buffer::Copy, &command);
 
             // Frustum cull instanced cubes (points) and update indirect draw buffer.
@@ -131,19 +141,19 @@ class Scene
             model.bind_indexed(GL_SHADER_STORAGE_BUFFER, 0);
             culled_buffer->bind_indexed(GL_SHADER_STORAGE_BUFFER, 1);
             indirect.bind_indexed(GL_ATOMIC_COUNTER_BUFFER, 0); // Instance count is written here.
-            glDispatchCompute(blocks.size() / 64, 1, 1);
+            glDispatchCompute(size, size, size);
             indirect.unbind_indexed(GL_ATOMIC_COUNTER_BUFFER, 0);
             model.unbind_indexed(GL_SHADER_STORAGE_BUFFER, 0);
             culled_buffer->unbind_indexed(GL_SHADER_STORAGE_BUFFER, 1);
 
-            // GL must wait until previous shader has updated data.
+            // GL must wait until previous shader has made updated data visible.
             glMemoryBarrier(GL_COMMAND_BARRIER_BIT | GL_VERTEX_ATTRIB_ARRAY_BARRIER_BIT);
 
 #if 0
             const IndirectCommand* cmd;
             if (indirect.map(cmd))
             {
-               Log::log("Count: %u, PrimCount: %u.", cmd->count, cmd->primCount); 
+               Log::log("Count0: %u, PrimCount0: %u. Count1: %u, PrimCount1: %u, BaseInstace1: %u.", cmd[0].count, cmd[0].primCount, cmd[1].count, cmd[1].primCount, cmd[1].baseInstance); 
                indirect.unmap();
             }
 #endif
@@ -163,7 +173,9 @@ class Scene
                render_shader->set_define("DIFFUSE_MAP", 0);
 
             indirect.bind();
-            glDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, nullptr);
+            glDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, nullptr); // Nearest
+            //glDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, reinterpret_cast<void*>(uintptr_t(sizeof(IndirectCommand)))); // Farthest
+            //glMultiDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, nullptr, 2, 0); // Oo la la!
             indirect.unbind();
 
             if (use_diffuse)
@@ -309,7 +321,7 @@ class BoxesApp : public LibretroGLApplication
          update_input(delta, analog, input.pressed);
 
          glViewport(0, 0, width, height);
-         glClearColor(0.3f, 0.3f, 0.3f, 1.0f);
+         glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
          glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
          glEnable(GL_CULL_FACE);
