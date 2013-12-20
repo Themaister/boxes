@@ -43,7 +43,7 @@ class Scene
          else
             drawable.use_diffuse = false;
 
-         cull_shader.init("app/shaders/boxcull.vs", "app/shaders/boxcull.fs");
+         cull_shader.init_compute("app/shaders/boxcull.cs");
          render_shader.reserve_define("DIFFUSE_MAP", 1);
          render_shader.init("app/shaders/boxrender.vs", "app/shaders/boxrender.fs");
 
@@ -70,7 +70,6 @@ class Scene
          Shader *cull_shader;
          Shader *render_shader;
          VertexArray *render_array;
-         VertexArray cull_array;
          size_t indices;
 
          Buffer model;
@@ -87,14 +86,13 @@ class Scene
 
          Drawable()
          {
-            for (int z = -4000; z <= 4000; z += 64)
-               for (int y = -4000; y <= 4000; y += 64)
-                  for (int x = -4000; x <= 4000; x += 64)
+            for (int z = -4000; z < 4000; z += 64)
+               for (int y = -4000; y < 4000; y += 64)
+                  for (int x = -4000; x < 4000; x += 64)
                      blocks.push_back(vec4(vec3(x, y, z), 1.4143f));
             aabb = AABB(vec3(-4001), vec3(4001));
 
             model.init(GL_ARRAY_BUFFER, blocks.size() * sizeof(vec4), Buffer::None, blocks.data());
-            cull_array.setup({{ Shader::VertexLocation, 4, GL_FLOAT, GL_FALSE }}, { &model }, nullptr);
          }
 
          inline void set_cache_depth(float depth) override { cache_depth = depth; }
@@ -127,17 +125,16 @@ class Scene
             IndirectCommand command = { GLuint(indices) }; // primCount is incremented by shaders.
             indirect.init(GL_DRAW_INDIRECT_BUFFER, sizeof(command), Buffer::Copy, &command);
 
-            cull_shader->use();
-            cull_array.bind();
-
             // Frustum cull instanced cubes (points) and update indirect draw buffer.
-            culled_buffer->bind_indexed(GL_SHADER_STORAGE_BUFFER, 0);
+            // Compute shader! :D
+            cull_shader->use();
+            model.bind_indexed(GL_SHADER_STORAGE_BUFFER, 0);
+            culled_buffer->bind_indexed(GL_SHADER_STORAGE_BUFFER, 1);
             indirect.bind_indexed(GL_ATOMIC_COUNTER_BUFFER, 0); // Instance count is written here.
-            glEnable(GL_RASTERIZER_DISCARD); // Only run vertex shader stage.
-            glDrawArrays(GL_POINTS, 0, blocks.size());
-            glDisable(GL_RASTERIZER_DISCARD);
+            glDispatchCompute(blocks.size() / 64, 1, 1);
             indirect.unbind_indexed(GL_ATOMIC_COUNTER_BUFFER, 0);
-            culled_buffer->unbind_indexed(GL_SHADER_STORAGE_BUFFER, 0);
+            model.unbind_indexed(GL_SHADER_STORAGE_BUFFER, 0);
+            culled_buffer->unbind_indexed(GL_SHADER_STORAGE_BUFFER, 1);
 
             // GL must wait until previous shader has updated data.
             glMemoryBarrier(GL_COMMAND_BARRIER_BIT | GL_VERTEX_ATTRIB_ARRAY_BARRIER_BIT);

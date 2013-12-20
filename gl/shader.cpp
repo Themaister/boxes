@@ -92,32 +92,52 @@ namespace GL
    GLuint Shader::compile_shaders()
    {
       GLuint prog = glCreateProgram();
-      GLuint vert = glCreateShader(GL_VERTEX_SHADER);
-      GLuint geom = !source_gs.empty() ? glCreateShader(GL_GEOMETRY_SHADER) : 0;
-      GLuint frag = glCreateShader(GL_FRAGMENT_SHADER);
 
       auto defines = current_defines();
-
 #ifdef GL_DEBUG
-      log("Compiling shader with defines:");
-      for (auto& define : defines)
-         log("\t%s", define.c_str());
+         log("Compiling shader with defines:");
+         for (auto& define : defines)
+            log("\t%s", define.c_str());
 #endif
 
-      compile_shader(vert, source_vs, defines);
-      compile_shader(frag, source_fs, defines);
-      compile_shader(geom, source_gs, defines);
+      GLuint vert = 0, geom = 0, frag = 0, comp = 0;
 
-      glAttachShader(prog, vert);
-      if (geom)
-         glAttachShader(prog, geom);
-      glAttachShader(prog, frag);
+      if (source_compute.empty())
+      {
+         vert = glCreateShader(GL_VERTEX_SHADER);
+         geom = !source_gs.empty() ? glCreateShader(GL_GEOMETRY_SHADER) : 0;
+         frag = glCreateShader(GL_FRAGMENT_SHADER);
+
+         compile_shader(vert, source_vs, defines);
+         compile_shader(frag, source_fs, defines);
+
+         glAttachShader(prog, vert);
+         glAttachShader(prog, frag);
+
+         if (geom)
+         {
+            compile_shader(geom, source_gs, defines);
+            glAttachShader(prog, geom);
+         }
+      }
+      else
+      {
+         comp = glCreateShader(GL_COMPUTE_SHADER);
+         compile_shader(comp, source_compute, defines);
+         glAttachShader(prog, comp);
+      }
 
       glLinkProgram(prog);
       log_program(prog);
 
-      glDeleteShader(vert);
-      glDeleteShader(frag);
+      if (vert)
+         glDeleteShader(vert);
+      if (frag)
+         glDeleteShader(frag);
+      if (geom)
+         glDeleteShader(geom);
+      if (comp)
+         glDeleteShader(comp);
 
       return prog;
    }
@@ -182,9 +202,21 @@ namespace GL
 
    void Shader::init(const string& path_vs, const string& path_fs, const string& path_gs)
    {
+      source_compute.clear();
       source_vs = File::read_string(asset_path(path_vs));
       source_fs = File::read_string(asset_path(path_fs));
       source_gs = !path_gs.empty() ? File::read_string(asset_path(path_fs)) : "";
+
+      if (alive)
+         for (auto& prog : progs)
+            glDeleteProgram(prog.second);
+
+      progs.clear();
+   }
+
+   void Shader::init_compute(const string& path_compute)
+   {
+      source_compute = File::read_string(asset_path(path_compute));
 
       if (alive)
          for (auto& prog : progs)

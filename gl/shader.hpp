@@ -46,6 +46,7 @@ namespace GL
          };
 
          void init(const std::string& path_vs, const std::string& path_fs, const std::string& path_gs = "");
+         void init_compute(const std::string& path_compute);
 
          void use();
          void unbind();
@@ -76,7 +77,7 @@ namespace GL
          static unsigned total_global_bits;
          static std::vector<Define> global_defines;
 
-         std::string source_vs, source_fs, source_gs;
+         std::string source_vs, source_fs, source_gs, source_compute;
          bool alive = false;
 
          unsigned compile_shaders();
