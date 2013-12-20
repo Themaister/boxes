@@ -76,11 +76,14 @@ class Scene
 
       void render(const mat4& view_proj)
       {
+         drawable.render();
+#if 0
          queue.set_frustum(Frustum(view_proj));
          queue.begin();
          queue.push(&drawable);
          queue.end();
          queue.render();
+#endif
       }
 
    private:
@@ -107,12 +110,15 @@ class Scene
 
          Drawable()
          {
-            int base = 64;
-            int scale = 32;
+            int base = 16;
+            int scale = 4;
             for (int z = -base; z < base; z++)
                for (int y = -base; y < base; y++)
                   for (int x = -base; x < base; x++)
+                  {
                      blocks.push_back(vec4(vec3(x, y, z) * vec3(scale), 1.4143f));
+                     blocks.push_back(vec4(0.0f));
+                  }
             aabb = AABB(vec3(-base * scale - 1), vec3(base * scale + 1));
             size = 2 * base / 4;
 
@@ -167,7 +173,7 @@ class Scene
                culled_buffer[i].unbind_indexed(GL_SHADER_STORAGE_BUFFER, i + 1);
 
             // GL must wait until previous shader has made updated data visible.
-            glMemoryBarrier(GL_COMMAND_BARRIER_BIT | GL_VERTEX_ATTRIB_ARRAY_BARRIER_BIT);
+            glMemoryBarrier(GL_COMMAND_BARRIER_BIT | GL_VERTEX_ATTRIB_ARRAY_BARRIER_BIT | GL_SHADER_STORAGE_BARRIER_BIT);
 
 #if 0
             const IndirectCommand* cmd;
@@ -212,7 +218,7 @@ class Scene
       Drawable drawable;
       Shader cull_shader;
       Shader render_shader;
-      RenderQueue queue;
+      //RenderQueue queue;
 
       Buffer vert, vert_fine;
       Buffer elem, elem_fine;
@@ -275,7 +281,7 @@ class BoxesApp : public LibretroGLApplication
          global.vp = global.proj * global.view;
          global.inv_vp = inverse(global.vp);
 
-         global.camera_pos = vec4(player_pos.x, player_pos.y, player_pos.z, 0.0);
+         global.camera_pos = vec4(player_pos, 0.0f);
          global.frustum = Frustum(global.vp);
 
          global_fragment.camera_pos = global.camera_pos;
@@ -319,12 +325,14 @@ class BoxesApp : public LibretroGLApplication
          player_look_dir = vec3(rotate_y * rotate_x * vec4(0, 0, -1, 1));
          vec3 right_walk_dir = vec3(rotate_y_right * vec4(0, 0, -1, 1));
 
-
          vec3 mod_speed = buttons.r ? vec3(240.0f) : vec3(120.0f);
          vec3 velocity = player_look_dir * vec3(analog.y * -0.25f) +
             right_walk_dir * vec3(analog.x * 0.25f);
 
          player_pos += velocity * mod_speed * delta;
+         global.time = vec4(delta);
+         global.camera_vel = vec4(velocity * mod_speed, 0.0f);
+         global_fragment.camera_vel = vec4(velocity * mod_speed, 0.0f);
          update_global_data();
       }
 
@@ -421,12 +429,15 @@ class BoxesApp : public LibretroGLApplication
          mat4 inv_view_nt;
          mat4 inv_proj;
          vec4 camera_pos;
+         vec4 camera_vel;
          Frustum frustum;
+         vec4 time;
       };
 
       struct GlobalFragmentData
       {
          vec4 camera_pos;
+         vec4 camera_vel;
          vec4 light_pos;
          vec4 light_color;
          vec4 light_ambient;

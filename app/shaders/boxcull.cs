@@ -11,16 +11,24 @@ layout(binding = GLOBAL_VERTEX_DATA) uniform GlobalVertexData
    mat4 inv_view_nt;
    mat4 inv_proj;
    vec4 camera_pos;
+   vec4 camera_vel;
    vec4 frustum[6];
+   vec4 time;
 } global_vert;
 
 layout(binding = 0, offset = 4) uniform atomic_uint lod0_cnt; // Outputs to instance variable.
 layout(binding = 0, offset = 24) uniform atomic_uint lod1_cnt;
 layout(binding = 0, offset = 44) uniform atomic_uint lod2_cnt;
 
+struct Point
+{
+   vec4 pos;
+   vec4 vel;
+};
+
 layout(binding = 0) buffer SourceData
 {
-   readonly vec4 pos[];
+   Point points[];
 } source_data;
 
 layout(binding = 1) buffer DestData0
@@ -46,8 +54,28 @@ uint get_invocation()
 
 void main()
 {
-   vec4 point = source_data.pos[get_invocation()];
+   uint invocation = get_invocation();
+   vec4 point = source_data.points[invocation].pos;
+   vec4 vel = source_data.points[invocation].vel;
+
+   // "Physics" :D
+   vec3 dist = point.xyz - global_vert.camera_pos.xyz;
+   float dist_len_sq = dot(dist, dist);
+
+   vec3 accel_neg = 500.0 * -normalize(dist) / (dot(dist, dist) + 0.001);
+   point.xyz += global_vert.time.x * vel.xyz;
+   vel.xyz += global_vert.time.x * accel_neg;
+
+   vec3 rel_vel = vel.xyz - global_vert.camera_vel.xyz; // Relative velocity to camera.
+   if (dist_len_sq < 10.0 && dot(rel_vel, dist) < 0.0)
+      vel.xyz = reflect(rel_vel, normalize(dist)) + global_vert.camera_vel.xyz; // Bounce factor
+
+   source_data.points[invocation].pos = point;
+   source_data.points[invocation].vel = vel;
+
    vec4 pos = vec4(point.xyz, 1.0);
+
+   // Frustum cull and create instance draw lists.
 
    float depth = dot(pos, global_vert.frustum[0]);
    if (depth < -point.w) // Culled
