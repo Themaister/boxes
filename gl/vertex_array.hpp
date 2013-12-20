@@ -17,17 +17,17 @@ namespace GL
             GLint size;
             GLenum type;
             GLboolean normalized;
-            GLsizei stride;
-            GLsizei offset;
-            GLuint divisor;
+
+            GLuint stride;
             unsigned buffer_index;
+            unsigned divisor;
+            GLsizei offset;
          };
 
          void reset() override;
          void destroyed() override;
 
-         void setup(const std::vector<Array>& arrays,
-               std::vector<Buffer*> array_buffers, Buffer* elem_buffer);
+         void setup(const std::vector<Array>& arrays, std::vector<Buffer*> vertex_buffers, Buffer *elem_buffer);
 
          void bind();
          void unbind();
@@ -36,9 +36,8 @@ namespace GL
          GLuint vao = 0;
          bool alive = false;
          std::vector<Array> arrays;
-         std::vector<Buffer*> array_buffers;
-         Buffer *elem_buffer = nullptr;
-
+         std::vector<Buffer*> vertex_buffers;
+         Buffer* elem_buffer = nullptr;
          void setup();
    };
 }

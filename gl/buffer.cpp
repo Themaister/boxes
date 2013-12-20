@@ -52,6 +52,7 @@ namespace GL
       {
          case GL_UNIFORM_BUFFER:
          case GL_ATOMIC_COUNTER_BUFFER:
+         case GL_SHADER_STORAGE_BUFFER:
             return true;
          default:
             return false;

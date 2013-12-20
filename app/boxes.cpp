@@ -20,12 +20,26 @@ class Scene
    public:
       void init()
       {
+         int base = 16;
+         int scale = 4;
+         for (int z = -base; z < base; z++)
+            for (int y = -base; y < base; y++)
+               for (int x = -base; x < base; x++)
+               {
+                  blocks.push_back(vec4(vec3(x, y, z) * vec3(scale), 1.4143f));
+                  blocks.push_back(vec4(0.0f));
+               }
+         size = 2 * base / 4;
+
+         model.init(GL_ARRAY_BUFFER, blocks.size() * sizeof(vec4), Buffer::None, blocks.data());
+
          auto mesh = create_mesh_box();
          auto mesh_fine = load_meshes_obj("app/mesh.obj");
 
-         mesh_fine[0].arrays.push_back({3, 4, GL_FLOAT, GL_FALSE, 0, 0, 1, 1});
-         mesh.arrays.push_back({3, 4, GL_FLOAT, GL_FALSE, 0, 0, 1, 1});
+         mesh_fine[0].arrays.push_back({3, 4, GL_FLOAT, GL_FALSE, 0, 1, 1, 0});
          render_array[0].setup(mesh_fine[0].arrays, { &vert_fine, &culled_buffer[0] }, &elem_fine);
+
+         mesh.arrays.push_back({3, 4, GL_FLOAT, GL_FALSE, 0, 1, 1, 0});
          render_array[1].setup(mesh.arrays, { &vert, &culled_buffer[1] }, &elem);
          render_array[2].setup(mesh.arrays, { &vert, &culled_buffer[2] }, &elem);
 
@@ -34,32 +48,32 @@ class Scene
          vert.init(GL_ARRAY_BUFFER, mesh.vbo, Buffer::None);
          elem.init(GL_ELEMENT_ARRAY_BUFFER, mesh.ibo, Buffer::None);
 
-         drawable.indices_fine = mesh_fine[0].ibo.size();
-         drawable.indices = mesh.ibo.size();
+         indices_fine = mesh_fine[0].ibo.size();
+         indices = mesh.ibo.size();
 
-         MaterialBuffer material(mesh_fine[0].material);
-         drawable.material[0].init(GL_UNIFORM_BUFFER, sizeof(material),
-               Buffer::None, &material, Shader::Material);
+         MaterialBuffer material_buf(mesh_fine[0].material);
+         material[0].init(GL_UNIFORM_BUFFER, sizeof(material),
+               Buffer::None, &material_buf, Shader::Material);
 
          mesh.material.diffuse = vec3(0.5f, 0.8f, 0.5f);
-         material = mesh.material;
-         drawable.material[1].init(GL_UNIFORM_BUFFER, sizeof(material),
-               Buffer::None, &material, Shader::Material);
+         material_buf = mesh.material;
+         material[1].init(GL_UNIFORM_BUFFER, sizeof(material),
+               Buffer::None, &material_buf, Shader::Material);
 
          mesh.material.diffuse = vec3(0.8, 0.5f, 0.3f);
-         material = mesh.material;
-         drawable.material[2].init(GL_UNIFORM_BUFFER, sizeof(material),
-               Buffer::None, &material, Shader::Material);
+         material_buf = mesh.material;
+         material[2].init(GL_UNIFORM_BUFFER, sizeof(material),
+               Buffer::None, &material_buf, Shader::Material);
 
          if (!mesh.material.diffuse_map.empty())
          {
-            drawable.use_diffuse = true;
-            drawable.tex.load_texture({Texture::Texture2D,
+            use_diffuse = true;
+            tex.load_texture({Texture::Texture2D,
                   { mesh.material.diffuse_map },
                   true });
          }
          else
-            drawable.use_diffuse = false;
+            use_diffuse = false;
 
          cull_shader.init_compute("app/shaders/boxcull.cs");
          render_shader.reserve_define("DIFFUSE_MAP", 1);
@@ -67,163 +81,94 @@ class Scene
 
          for (auto& buffer : culled_buffer)
             buffer.init(GL_ARRAY_BUFFER, 8 * 1024 * 1024, Buffer::Copy);
-
-         drawable.cull_shader = &cull_shader;
-         drawable.render_shader = &render_shader;
-         drawable.culled_buffer = culled_buffer;
-         drawable.render_array = render_array;
       }
 
       void render(const mat4& view_proj)
       {
-         drawable.render();
-#if 0
-         queue.set_frustum(Frustum(view_proj));
-         queue.begin();
-         queue.push(&drawable);
-         queue.end();
-         queue.render();
-#endif
+         // Reset indirect draw buffer.
+         struct IndirectCommand
+         {
+            GLuint count;
+            GLuint primCount;
+            GLuint firstIndex;
+            GLuint baseVertex;
+            GLuint baseInstance;
+         };
+         IndirectCommand command[] = {
+            { GLuint(indices_fine) }, // primCount is incremented by shaders.
+            { GLuint(indices) },
+            { GLuint(indices) },
+         };
+         indirect.init(GL_DRAW_INDIRECT_BUFFER, sizeof(command), Buffer::Copy, command);
+
+         // Frustum cull instanced cubes (points) and update indirect draw buffer.
+         // Compute shader! :D
+         cull_shader.use();
+         model.bind_indexed(GL_SHADER_STORAGE_BUFFER, 0);
+         for (unsigned i = 0; i < 3; i++)
+            culled_buffer[i].bind_indexed(GL_SHADER_STORAGE_BUFFER, i + 1);
+         indirect.bind_indexed(GL_ATOMIC_COUNTER_BUFFER, 0); // Instance count is written here.
+         glDispatchCompute(size, size, size);
+         indirect.unbind_indexed(GL_ATOMIC_COUNTER_BUFFER, 0);
+         model.unbind_indexed(GL_SHADER_STORAGE_BUFFER, 0);
+         for (unsigned i = 0; i < 3; i++)
+            culled_buffer[i].unbind_indexed(GL_SHADER_STORAGE_BUFFER, i + 1);
+
+         // GL must wait until previous shader has made updated data visible.
+         glMemoryBarrier(GL_COMMAND_BARRIER_BIT | GL_VERTEX_ATTRIB_ARRAY_BARRIER_BIT | GL_SHADER_STORAGE_BARRIER_BIT);
+
+         // Render instanced data.
+         Sampler::bind(0, Sampler::TrilinearClamp);
+
+         render_shader.use();
+         if (use_diffuse)
+         {
+            tex.bind(0);
+            render_shader.set_define("DIFFUSE_MAP", 1);
+         }
+         else
+            render_shader.set_define("DIFFUSE_MAP", 0);
+
+         indirect.bind();
+         for (unsigned i = 0; i < 3; i++)
+         {
+            render_array[i].bind();
+            material[i].bind();
+            glDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT,
+                  reinterpret_cast<void*>(i * uintptr_t(sizeof(IndirectCommand)))); // Nearest
+         }
+         indirect.unbind();
+
+         if (use_diffuse)
+            tex.unbind(0);
+
+         Sampler::unbind(0, Sampler::TrilinearClamp);
+         render_shader.unbind();
+         render_array[2].unbind();
+         material[2].unbind();
       }
 
-   private:
-      struct Drawable : Renderable
-      {
-         Shader *cull_shader;
-         Shader *render_shader;
-         VertexArray *render_array;
-         size_t indices;
-         size_t indices_fine;
-
-         Buffer model;
-         Buffer material[3];
-         Buffer indirect;
-         Buffer *culled_buffer;
-
-         Texture tex;
-         bool use_diffuse;
-         float cache_depth;
-         unsigned size;
-
-         vector<vec4> blocks;
-         AABB aabb;
-
-         Drawable()
-         {
-            int base = 16;
-            int scale = 4;
-            for (int z = -base; z < base; z++)
-               for (int y = -base; y < base; y++)
-                  for (int x = -base; x < base; x++)
-                  {
-                     blocks.push_back(vec4(vec3(x, y, z) * vec3(scale), 1.4143f));
-                     blocks.push_back(vec4(0.0f));
-                  }
-            aabb = AABB(vec3(-base * scale - 1), vec3(base * scale + 1));
-            size = 2 * base / 4;
-
-            model.init(GL_ARRAY_BUFFER, blocks.size() * sizeof(vec4), Buffer::None, blocks.data());
-         }
-
-         inline void set_cache_depth(float depth) override { cache_depth = depth; }
-         inline const AABB& get_aabb() const override { return aabb; }
-         inline bool compare_less(const Renderable& o_tmp) const override
-         {
-            const Drawable& o = static_cast<const Drawable&>(o_tmp);
-            if (&o == this)
-               return false;
-
-            if (use_diffuse && !o.use_diffuse)
-               return true;
-            if (cache_depth < o.cache_depth)
-               return true;
-
-            return false;
-         }
-
-         inline void render()
-         {
-            // Reset indirect draw buffer.
-            struct IndirectCommand
-            {
-               GLuint count;
-               GLuint primCount;
-               GLuint firstIndex;
-               GLuint baseVertex;
-               GLuint baseInstance;
-            };
-            IndirectCommand command[] = {
-               { GLuint(indices_fine) }, // primCount is incremented by shaders.
-               { GLuint(indices) },
-               { GLuint(indices) },
-            };
-            indirect.init(GL_DRAW_INDIRECT_BUFFER, sizeof(command), Buffer::Copy, command);
-
-            // Frustum cull instanced cubes (points) and update indirect draw buffer.
-            // Compute shader! :D
-            cull_shader->use();
-            model.bind_indexed(GL_SHADER_STORAGE_BUFFER, 0);
-            for (unsigned i = 0; i < 3; i++)
-               culled_buffer[i].bind_indexed(GL_SHADER_STORAGE_BUFFER, i + 1);
-            indirect.bind_indexed(GL_ATOMIC_COUNTER_BUFFER, 0); // Instance count is written here.
-            glDispatchCompute(size, size, size);
-            indirect.unbind_indexed(GL_ATOMIC_COUNTER_BUFFER, 0);
-            model.unbind_indexed(GL_SHADER_STORAGE_BUFFER, 0);
-            for (unsigned i = 0; i < 3; i++)
-               culled_buffer[i].unbind_indexed(GL_SHADER_STORAGE_BUFFER, i + 1);
-
-            // GL must wait until previous shader has made updated data visible.
-            glMemoryBarrier(GL_COMMAND_BARRIER_BIT | GL_VERTEX_ATTRIB_ARRAY_BARRIER_BIT | GL_SHADER_STORAGE_BARRIER_BIT);
-
-#if 0
-            const IndirectCommand* cmd;
-            if (indirect.map(cmd))
-            {
-               Log::log("Count0: %u, PrimCount0: %u. Count1: %u, PrimCount1: %u.", cmd[0].count, cmd[0].primCount, cmd[1].count, cmd[1].primCount);
-               indirect.unmap();
-            }
-#endif
-
-            // Render instanced data.
-            render_shader->use();
-            Sampler::bind(0, Sampler::TrilinearClamp);
-
-            if (use_diffuse)
-            {
-               tex.bind(0);
-               render_shader->set_define("DIFFUSE_MAP", 1);
-            }
-            else
-               render_shader->set_define("DIFFUSE_MAP", 0);
-
-            indirect.bind();
-            for (unsigned i = 0; i < 3; i++)
-            {
-               render_array[i].bind();
-               material[i].bind();
-               glDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, reinterpret_cast<void*>(i * uintptr_t(sizeof(IndirectCommand)))); // Nearest
-            }
-            indirect.unbind();
-
-            if (use_diffuse)
-               tex.unbind(0);
-
-            Sampler::unbind(0, Sampler::TrilinearClamp);
-            render_shader->unbind();
-            render_array[2].unbind();
-            material[2].unbind();
-         }
-      };
-
-      Drawable drawable;
       Shader cull_shader;
       Shader render_shader;
-      //RenderQueue queue;
 
       Buffer vert, vert_fine;
       Buffer elem, elem_fine;
       Buffer culled_buffer[3];
       VertexArray render_array[3];
+
+      size_t indices_fine;
+      size_t indices;
+
+      Buffer model;
+      Buffer material[3];
+      Buffer indirect;
+
+      Texture tex;
+      bool use_diffuse;
+      float cache_depth;
+      unsigned size;
+
+      vector<vec4> blocks;
 };
 
 class BoxesApp : public LibretroGLApplication
@@ -406,7 +351,7 @@ class BoxesApp : public LibretroGLApplication
          skybox.shader.init("app/shaders/skybox.vs", "app/shaders/skybox.fs");
          vector<int8_t> vertices = { -1, -1, 1, -1, -1, 1, 1, 1 };
          skybox.vertex.init(GL_ARRAY_BUFFER, 8, Buffer::None, vertices.data());
-         skybox.arrays.setup({{Shader::VertexLocation, 2, GL_BYTE, GL_FALSE, 0, 0}}, { &skybox.vertex }, nullptr);
+         skybox.arrays.setup({{Shader::VertexLocation, 2, GL_BYTE, GL_FALSE}}, { &skybox.vertex }, nullptr);
       }
 
    private:

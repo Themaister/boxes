@@ -91,19 +91,19 @@ namespace GL
       GLsizei offset = 0;
       if (has_vertex)
       {
-         arrays.push_back({ Shader::VertexLocation, 3, GL_FLOAT, GL_FALSE, 0, offset});
+         arrays.push_back({ Shader::VertexLocation, 3, GL_FLOAT, GL_FALSE, 0, 0, 0, offset});
          offset += 3 * sizeof(float);
       }
 
       if (has_normal)
       {
-         arrays.push_back({ Shader::NormalLocation, 3, GL_FLOAT, GL_FALSE, 0, offset});
+         arrays.push_back({ Shader::NormalLocation, 3, GL_FLOAT, GL_FALSE, 0, 0, 0, offset});
          offset += 3 * sizeof(float);
       }
 
       if (has_texcoord)
       {
-         arrays.push_back({ Shader::TexCoordLocation, 2, GL_FLOAT, GL_FALSE, 0, offset});
+         arrays.push_back({ Shader::TexCoordLocation, 2, GL_FLOAT, GL_FALSE, 0, 0, 0, offset});
          offset += 2 * sizeof(float);
       }
 

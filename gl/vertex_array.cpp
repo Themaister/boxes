@@ -13,12 +13,12 @@ namespace GL
 
       for (auto& array : arrays)
       {
-         array_buffers[array.buffer_index]->bind();
-         glVertexAttribPointer(array.location, array.size, array.type,
-               array.normalized, array.stride, reinterpret_cast<void*>(array.offset));
+         vertex_buffers[array.buffer_index]->bind();
          glEnableVertexAttribArray(array.location);
+         glVertexAttribPointer(array.location, array.size, array.type,
+               array.normalized, array.stride, reinterpret_cast<const void*>(array.offset));
          glVertexAttribDivisor(array.location, array.divisor);
-         array_buffers[array.buffer_index]->unbind();
+         vertex_buffers[array.buffer_index]->unbind();
       }
 
       unbind();
@@ -37,19 +37,21 @@ namespace GL
       glBindVertexArray(0);
    }
 
-   void VertexArray::setup(const vector<Array>& arrays, vector<Buffer*> array_buffers, Buffer* elem_buffer)
+   void VertexArray::setup(const vector<Array>& arrays, std::vector<Buffer*> vertex_buffers, Buffer *elem_buffer)
    {
-      for (auto& buffer : this->array_buffers)
-         unregister_dependency(buffer);
-      unregister_dependency(this->elem_buffer);
-
       this->arrays = arrays;
-      this->array_buffers = move(array_buffers);
+      for (auto vert : this->vertex_buffers)
+         unregister_dependency(vert);
+      if (this->elem_buffer)
+         unregister_dependency(this->elem_buffer);
+
+      this->vertex_buffers = move(vertex_buffers);
       this->elem_buffer = elem_buffer;
 
-      for (auto& buffer : this->array_buffers)
-         register_dependency(buffer);
-      register_dependency(this->elem_buffer);
+      for (auto vert : this->vertex_buffers)
+         register_dependency(vert);
+      if (this->elem_buffer)
+         register_dependency(this->elem_buffer);
 
       if (alive)
       {
