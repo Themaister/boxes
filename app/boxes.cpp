@@ -23,14 +23,30 @@ class Scene
          auto mesh = create_mesh_box();
 
          mesh.arrays.push_back({3, 4, GL_FLOAT, GL_FALSE, 0, 0, 1, 1});
-         render_array.setup(mesh.arrays, { &vert, &culled_buffer }, &elem);
+         render_array[0].setup(mesh.arrays, { &vert, &culled_buffer[0] }, &elem);
+         render_array[1].setup(mesh.arrays, { &vert, &culled_buffer[1] }, &elem);
+         render_array[2].setup(mesh.arrays, { &vert, &culled_buffer[2] }, &elem);
 
          vert.init(GL_ARRAY_BUFFER, mesh.vbo, Buffer::None);
          elem.init(GL_ELEMENT_ARRAY_BUFFER, mesh.ibo, Buffer::None);
          drawable.indices = mesh.ibo.size();
 
+         mesh.material.specular_power = 10.0f;
+         mesh.material.specular = vec3(0.5f);
+         mesh.material.diffuse = vec3(0.2f, 0.2f, 0.8f);
          MaterialBuffer material(mesh.material);
-         drawable.material.init(GL_UNIFORM_BUFFER, sizeof(material),
+         drawable.material[0].init(GL_UNIFORM_BUFFER, sizeof(material),
+               Buffer::None, &material, Shader::Material);
+         mesh.material.specular = vec3(0.0f);
+
+         mesh.material.diffuse = vec3(0.5f, 0.8f, 0.5f);
+         material = mesh.material;
+         drawable.material[1].init(GL_UNIFORM_BUFFER, sizeof(material),
+               Buffer::None, &material, Shader::Material);
+
+         mesh.material.diffuse = vec3(0.8, 0.5f, 0.3f);
+         material = mesh.material;
+         drawable.material[2].init(GL_UNIFORM_BUFFER, sizeof(material),
                Buffer::None, &material, Shader::Material);
 
          if (!mesh.material.diffuse_map.empty())
@@ -47,12 +63,13 @@ class Scene
          render_shader.reserve_define("DIFFUSE_MAP", 1);
          render_shader.init("app/shaders/boxrender.vs", "app/shaders/boxrender.fs");
 
-         culled_buffer.init(GL_ARRAY_BUFFER, 16 * 1024 * 1024, Buffer::Copy);
+         for (auto& buffer : culled_buffer)
+            buffer.init(GL_ARRAY_BUFFER, 8 * 1024 * 1024, Buffer::Copy);
 
-         drawable.culled_buffer = &culled_buffer;
          drawable.cull_shader = &cull_shader;
          drawable.render_shader = &render_shader;
-         drawable.render_array = &render_array;
+         drawable.culled_buffer = culled_buffer;
+         drawable.render_array = render_array;
       }
 
       void render(const mat4& view_proj)
@@ -73,7 +90,7 @@ class Scene
          size_t indices;
 
          Buffer model;
-         Buffer material;
+         Buffer material[3];
          Buffer indirect;
          Buffer *culled_buffer;
 
@@ -126,25 +143,25 @@ class Scene
                GLuint baseVertex;
                GLuint baseInstance;
             };
-#if 0
             IndirectCommand command[] = {
-               { GLuint(indices), 0, 0, 0, GLuint(blocks.size()) }, // primCount is incremented by shaders.
-               { GLuint(indices), 0, 0, 0, 0 },
+               { GLuint(indices) }, // primCount is incremented by shaders.
+               { GLuint(indices) },
+               { GLuint(indices) },
             };
-#endif
-            IndirectCommand command = { GLuint(indices) };
-            indirect.init(GL_DRAW_INDIRECT_BUFFER, sizeof(command), Buffer::Copy, &command);
+            indirect.init(GL_DRAW_INDIRECT_BUFFER, sizeof(command), Buffer::Copy, command);
 
             // Frustum cull instanced cubes (points) and update indirect draw buffer.
             // Compute shader! :D
             cull_shader->use();
             model.bind_indexed(GL_SHADER_STORAGE_BUFFER, 0);
-            culled_buffer->bind_indexed(GL_SHADER_STORAGE_BUFFER, 1);
+            for (unsigned i = 0; i < 3; i++)
+               culled_buffer[i].bind_indexed(GL_SHADER_STORAGE_BUFFER, i + 1);
             indirect.bind_indexed(GL_ATOMIC_COUNTER_BUFFER, 0); // Instance count is written here.
             glDispatchCompute(size, size, size);
             indirect.unbind_indexed(GL_ATOMIC_COUNTER_BUFFER, 0);
             model.unbind_indexed(GL_SHADER_STORAGE_BUFFER, 0);
-            culled_buffer->unbind_indexed(GL_SHADER_STORAGE_BUFFER, 1);
+            for (unsigned i = 0; i < 3; i++)
+               culled_buffer[i].unbind_indexed(GL_SHADER_STORAGE_BUFFER, i + 1);
 
             // GL must wait until previous shader has made updated data visible.
             glMemoryBarrier(GL_COMMAND_BARRIER_BIT | GL_VERTEX_ATTRIB_ARRAY_BARRIER_BIT);
@@ -153,17 +170,15 @@ class Scene
             const IndirectCommand* cmd;
             if (indirect.map(cmd))
             {
-               Log::log("Count0: %u, PrimCount0: %u. Count1: %u, PrimCount1: %u, BaseInstace1: %u.", cmd[0].count, cmd[0].primCount, cmd[1].count, cmd[1].primCount, cmd[1].baseInstance); 
+               Log::log("Count0: %u, PrimCount0: %u. Count1: %u, PrimCount1: %u.", cmd[0].count, cmd[0].primCount, cmd[1].count, cmd[1].primCount);
                indirect.unmap();
             }
 #endif
 
             // Render instanced data.
             render_shader->use();
-            render_array->bind();
             Sampler::bind(0, Sampler::TrilinearClamp);
 
-            material.bind();
             if (use_diffuse)
             {
                tex.bind(0);
@@ -173,9 +188,12 @@ class Scene
                render_shader->set_define("DIFFUSE_MAP", 0);
 
             indirect.bind();
-            glDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, nullptr); // Nearest
-            //glDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, reinterpret_cast<void*>(uintptr_t(sizeof(IndirectCommand)))); // Farthest
-            //glMultiDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, nullptr, 2, 0); // Oo la la!
+            for (unsigned i = 0; i < 3; i++)
+            {
+               render_array[i].bind();
+               material[i].bind();
+               glDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, reinterpret_cast<void*>(i * uintptr_t(sizeof(IndirectCommand)))); // Nearest
+            }
             indirect.unbind();
 
             if (use_diffuse)
@@ -183,8 +201,8 @@ class Scene
 
             Sampler::unbind(0, Sampler::TrilinearClamp);
             render_shader->unbind();
-            render_array->unbind();
-            material.unbind();
+            render_array[2].unbind();
+            material[2].unbind();
          }
       };
 
@@ -195,8 +213,8 @@ class Scene
 
       Buffer vert;
       Buffer elem;
-      Buffer culled_buffer;
-      VertexArray render_array;
+      Buffer culled_buffer[3];
+      VertexArray render_array[3];
 };
 
 class BoxesApp : public LibretroGLApplication

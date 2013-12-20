@@ -15,29 +15,28 @@ layout(binding = GLOBAL_VERTEX_DATA) uniform GlobalVertexData
 } global_vert;
 
 layout(binding = 0, offset = 4) uniform atomic_uint lod0_cnt; // Outputs to instance variable.
-//layout(binding = 0, offset = 24) uniform atomic_uint lod1_cnt;
+layout(binding = 0, offset = 24) uniform atomic_uint lod1_cnt;
+layout(binding = 0, offset = 44) uniform atomic_uint lod2_cnt;
 
 layout(binding = 0) buffer SourceData
 {
    readonly vec4 pos[];
 } source_data;
 
-layout(binding = 1) buffer DestData
+layout(binding = 1) buffer DestData0
 {
    writeonly vec4 pos[];
-} culled;
+} culled0;
 
-#if 0
-uint work_size()
+layout(binding = 2) buffer DestData1
 {
-   return gl_WorkGroupSize.x *
-      gl_WorkGroupSize.y *
-      gl_WorkGroupSize.z *
-      gl_NumWorkGroups.x *
-      gl_NumWorkGroups.y *
-      gl_NumWorkGroups.z;
-}
-#endif
+   writeonly vec4 pos[];
+} culled1;
+
+layout(binding = 3) buffer DestData2
+{
+   writeonly vec4 pos[];
+} culled2;
 
 uint get_invocation()
 {
@@ -50,7 +49,6 @@ void main()
    vec4 point = source_data.pos[get_invocation()];
    vec4 pos = vec4(point.xyz, 1.0);
 
-#if 0
    float depth = dot(pos, global_vert.frustum[0]);
    if (depth < -point.w) // Culled
       return;
@@ -59,24 +57,20 @@ void main()
       if (dot(pos, global_vert.frustum[i]) < -point.w) // Culled
          return;
 
-   if (depth > 100.0) // LOD1
+   if (depth > 200.0) // LOD2
+   {
+      uint counter = atomicCounterIncrement(lod2_cnt);
+      culled2.pos[counter] = point;
+   }
+   else if (depth > 50.0) // LOD1
    {
       uint counter = atomicCounterIncrement(lod1_cnt);
-      culled.pos[counter] = point;
+      culled1.pos[counter] = point;
    }
-   else
+   else // LOD0
    {
       uint counter = atomicCounterIncrement(lod0_cnt);
-      uint offset = work_size();
-      culled.pos[counter + offset] = point;
+      culled0.pos[counter] = point;
    }
-#endif
-
-   for (int i = 0; i < 6; i++)
-      if (dot(pos, global_vert.frustum[i]) < -point.w) // Culled
-         return;
-
-   uint counter = atomicCounterIncrement(lod0_cnt);
-   culled.pos[counter] = point;
 }
 
