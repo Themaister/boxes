@@ -44,7 +44,7 @@ void main()
 
    vec4 clip_pos = global_vert.vp * world;
    gl_Position = clip_pos;
-   vec2 point_size = 2.65 * global_vert.resolution.zw / clip_pos.w; // Make it slightly bigger than box (2.0 width) to accomodate for rotation.
+   vec2 point_size = 2.2 * global_vert.resolution.zw / clip_pos.w; // Make it slightly bigger than box (2.0 width) to accomodate for rotation.
    gl_PointSize = dot(vec2(0.5), point_size); // Average
 
    // Vertex coloring.
