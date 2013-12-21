@@ -53,7 +53,7 @@ void main()
 
    float ndotl = max(dot(vLight, vEye), 0.0);
    float light_mod = 0.5; // Could attenuate, but don't bother.
-   vec3 ambient = material.ambient.rgb;
+   vec3 ambient = global_frag.light_ambient.rgb * material.ambient.rgb;
    vec3 diffuse = light_mod * ndotl * global_frag.light_color.rgb * material.diffuse.rgb;
    vout.color = sqrt(ambient + diffuse);
 }

@@ -20,8 +20,8 @@ class Scene
    public:
       void init()
       {
-         int base = 32;
-         int scale = 4;
+         int base = 48;
+         int scale = 8;
          for (int z = -base; z < base; z++)
             for (int y = -base; y < base; y++)
                for (int x = -base; x < base; x++)
@@ -59,11 +59,11 @@ class Scene
                Buffer::None, &material_buf, Shader::Material);
 
          mesh.material.diffuse = vec3(0.5f, 0.8f, 0.5f);
+         mesh.material.ambient = vec3(0.5f, 0.8f, 0.5f);
          material_buf = mesh.material;
          material[1].init(GL_UNIFORM_BUFFER, sizeof(material),
                Buffer::None, &material_buf, Shader::Material);
 
-         mesh.material.diffuse = vec3(0.8, 0.5f, 0.3f);
          material_buf = mesh.material;
          material[2].init(GL_UNIFORM_BUFFER, sizeof(material),
                Buffer::None, &material_buf, Shader::Material);
@@ -85,7 +85,7 @@ class Scene
          render_shader_point.init("app/shaders/boxrender_point.vs", "app/shaders/boxrender_point.fs");
 
          for (auto& buffer : culled_buffer)
-            buffer.init(GL_ARRAY_BUFFER, 8 * 1024 * 1024, Buffer::Copy);
+            buffer.init(GL_ARRAY_BUFFER, 16 * 1024 * 1024, Buffer::Copy);
       }
 
       void render(const mat4& view_proj)
@@ -363,7 +363,7 @@ class BoxesApp : public LibretroGLApplication
          global_fragment_buffer.init(GL_UNIFORM_BUFFER,
                sizeof(global_fragment), Buffer::WriteOnly, nullptr, Shader::GlobalFragmentData);
 
-         player_pos = vec3(0, 0, 150);
+         player_pos = vec3(0, 0, 500);
          player_look_dir = vec3(0, 0, -1);
          player_view_deg_x = 0.0f;
          player_view_deg_y = 0.0f;

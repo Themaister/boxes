@@ -63,7 +63,7 @@ void main()
    vec3 dist = point.xyz - global_vert.camera_pos.xyz;
    float dist_len_sq = dot(dist, dist);
 
-   vec3 accel_neg = 500.0 * -normalize(dist) / (dot(dist, dist) + 0.001);
+   vec3 accel_neg = 20000.0 * -normalize(dist) / (dot(dist, dist) + 0.001);
    point.xyz += global_vert.delta_time * vel.xyz;
    vel.xyz += global_vert.delta_time * accel_neg;
 
@@ -86,12 +86,12 @@ void main()
       if (dot(pos, global_vert.frustum[i]) < -point.w) // Culled
          return;
 
-   if (depth > 250.0) // LOD2
+   if (depth > 500.0) // LOD2
    {
       uint counter = atomicCounterIncrement(lod2_cnt);
       culled2.pos[counter] = point;
    }
-   else if (depth > 50.0) // LOD1
+   else if (depth > 100.0) // LOD1
    {
       uint counter = atomicCounterIncrement(lod1_cnt);
       culled1.pos[counter] = point;
