@@ -30,7 +30,7 @@ else
    TARGET := $(TARGET_NAME)_libretro.dll
    SHARED := -shared -static-libgcc -static-libstdc++ -s -Wl,--version-script=link.T -Wl,--no-undefined
    GL_LIB := -lopengl32
-   INCFLAGS += -I. -Igl -Iinclude/win32
+   INCFLAGS += -I. -Igl -IGLcore
 endif
 
 CXXFLAGS += $(INCFLAGS)
