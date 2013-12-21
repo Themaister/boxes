@@ -14,9 +14,9 @@ and progressively less and less detail per instance. Last LOD is just point spri
 The number of blocks in play is ~850k.
 With my nVidia GTX760, I can get roughly 300-500 FPS up to 1000 FPS depending on the scene complexity after culling.
 
-LOD0: Blender monkey (Suzanne) (diffuse + specular lighting)
-LOD1: Cube (diffuse lighting)
-LOD2: Point sprites
+LOD0: Blender monkey (Suzanne) (diffuse + specular lighting)<br/>
+LOD1: Cube (diffuse lighting)<br/>
+LOD2: Point sprites<br/>
 
 Video
 ======
