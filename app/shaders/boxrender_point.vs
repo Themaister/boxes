@@ -13,22 +13,48 @@ layout(binding = GLOBAL_VERTEX_DATA) uniform GlobalVertexData
    vec4 resolution;
 } global_vert;
 
+layout(binding = GLOBAL_FRAGMENT_DATA) uniform GlobalFragmentData
+{
+   vec4 camera_pos;
+   vec4 camera_vel;
+   vec4 light_pos;
+   vec4 light_color;
+   vec4 light_ambient;
+   vec2 resolution;
+} global_frag;
+
+layout(binding = MATERIAL) uniform Material
+{
+   vec4 ambient;
+   vec4 diffuse;
+   vec4 specular;
+   float specular_power;
+} material;
+
 layout(location = VERTEX) in vec4 aVertex;
 
 out VertexData
 {
-   vec3 normal;
-   vec3 world;
+   vec3 color;
 } vout;
 
 void main()
 {
    vec4 world = vec4(aVertex.xyz, 1.0);
 
-   gl_Position = global_vert.vp * world;
-   gl_PointSize = 1000.0 / length(global_vert.camera_pos.xyz - world.xyz);
+   vec4 clip_pos = global_vert.vp * world;
+   gl_Position = clip_pos;
+   vec2 point_size = 2.65 * global_vert.resolution.zw / clip_pos.w; // Make it slightly bigger than box (2.0 width) to accomodate for rotation.
+   gl_PointSize = dot(vec2(0.5), point_size); // Average
 
-   vout.normal = normalize(global_vert.camera_pos.xyz - world.xyz);
-   vout.world = world.xyz;
+   // Vertex coloring.
+   vec3 vEye = normalize(global_frag.camera_pos.xyz - world.xyz);
+   vec3 vLight = normalize(global_frag.light_pos.xyz - world.xyz);
+
+   float ndotl = max(dot(vLight, vEye), 0.0);
+   float light_mod = 0.5; // Could attenuate, but don't bother.
+   vec3 ambient = material.ambient.rgb;
+   vec3 diffuse = light_mod * ndotl * global_frag.light_color.rgb * material.diffuse.rgb;
+   vout.color = sqrt(ambient + diffuse);
 }
 

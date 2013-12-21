@@ -234,7 +234,9 @@ class BoxesApp : public LibretroGLApplication
 
       void update_global_data()
       {
-         global.proj = perspective(45.0f, float(width) / float(height), 0.1f, 1000.0f);
+         float zn = 1.0f;
+         float zf = 2000.0f;
+         global.proj = perspective(45.0f, float(width) / float(height), zn, zf);
          global.inv_proj = inverse(global.proj);
          global.view = lookAt(player_pos, player_pos + player_look_dir, vec3(0, 1, 0));
          global.view_nt = lookAt(vec3(0.0f), player_look_dir, vec3(0, 1, 0));
@@ -248,11 +250,18 @@ class BoxesApp : public LibretroGLApplication
          global.frustum = Frustum(global.vp);
 
          global_fragment.camera_pos = global.camera_pos;
-         global_fragment.light_pos = vec4(600.0, 600.0, 600.0, 1.0);
+         global_fragment.light_pos = vec4(500, 2500, -1000, 1);
          global_fragment.light_color = vec4(1.0);
          global_fragment.light_ambient = vec4(0.2);
 
-         global.resolution = vec4(width, height, 0, 0);
+         // Compute a point size factor for point sprites.
+         // Point size can be determined as size * Delta / clip.w where clip.w is depth.
+         vec4 clip_delta_x = global.proj * vec4(1, 0, -zf, 1); // Check dCx/dx for far plane.
+         vec4 clip_delta_y = global.proj * vec4(0, 1, -zf, 1); // Check dCy/dy for far plane.
+         float delta_x = 0.5f * fabs(clip_delta_x.x / clip_delta_x.w) * width * zf;
+         float delta_y = 0.5f * fabs(clip_delta_y.y / clip_delta_y.w) * height * zf;
+
+         global.resolution = vec4(width, height, delta_x, delta_y);
          global_fragment.resolution = vec2(width, height);
 
          GlobalTransforms *buf;
