@@ -19,18 +19,18 @@ ifeq ($(platform), unix)
    fpic := -fPIC
    SHARED := -shared -Wl,--version-script=link.T -Wl,--no-undefined
    GL_LIB := -lGL
-   INCFLAGS += -I.
+   INCFLAGS += -I. -Igl
 else ifeq ($(platform), osx)
    TARGET := $(TARGET_NAME)_libretro.dylib
    fpic := -fPIC
    SHARED := -dynamiclib
    GL_LIB := -framework OpenGL
-   INCFLAGS += -I.
+   INCFLAGS += -I. -Igl
 else
    TARGET := $(TARGET_NAME)_libretro.dll
    SHARED := -shared -static-libgcc -static-libstdc++ -s -Wl,--version-script=link.T -Wl,--no-undefined
    GL_LIB := -lopengl32
-   INCFLAGS = -I. -Iinclude/win32
+   INCFLAGS += -I. -Igl -Iinclude/win32
 endif
 
 CXXFLAGS += $(INCFLAGS)
@@ -43,8 +43,8 @@ else
    CFLAGS += -O3 -g
 endif
 
-CXXFLAGS += -std=gnu++11 -Wall -pedantic $(fpic) -DHAVE_ZIP_DEFLATE -Igl
-CFLAGS += -std=gnu99 -Wall -pedantic $(fpic) -DHAVE_ZIP_DEFLATE
+CXXFLAGS += -std=gnu++11 -Wall $(fpic) -DHAVE_ZIP_DEFLATE
+CFLAGS += -std=gnu99 -Wall $(fpic) -DHAVE_ZIP_DEFLATE
 
 SOURCES := $(wildcard libretro/*.cpp) $(wildcard gl/*.cpp) app/$(TARGET_NAME).cpp
 CSOURCES = $(wildcard rpng/*.c) glsym/rglgen.c
