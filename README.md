@@ -27,7 +27,7 @@ Build
 
     make -f Makefile.libretro
 
-This targets [libretro](http://libretro.com), so you need [RetroArch](https://github.com/libretro/RetroArch) installed. After building,
+This targets [libretro](http://libretro.com) GL interface, so you need [RetroArch](https://github.com/libretro/RetroArch) installed. After building,
 
     retroarch -L boxes_libretro.so
     
