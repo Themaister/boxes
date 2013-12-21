@@ -12,7 +12,7 @@ else ifneq ($(findstring win,$(shell uname -a)),)
 endif
 endif
 
-TARGET_NAME ?= boxes
+TARGET_NAME := boxes
 
 ifeq ($(platform), unix)
    TARGET := $(TARGET_NAME)_libretro.so
@@ -46,18 +46,10 @@ endif
 CXXFLAGS += -std=gnu++11 -Wall -pedantic $(fpic) -DHAVE_ZIP_DEFLATE
 CFLAGS += -std=gnu99 -Wall -pedantic $(fpic) -DHAVE_ZIP_DEFLATE
 
-SOURCES := $(wildcard *.cpp) $(wildcard gl/*.cpp) app/$(TARGET_NAME).cpp
+SOURCES := $(wildcard libretro/*.cpp) $(wildcard gl/*.cpp) app/$(TARGET_NAME).cpp
 CSOURCES = $(wildcard rpng/*.c) glsym/rglgen.c
-
-ifeq ($(GLES), 1)
-   LIBS += -lGLESv2
-   CXXFLAGS += -DHAVE_OPENGLES2 -DHAVE_OPENGLES3
-   CFLAGS += -DHAVE_OPENGLES2 -DHAVE_OPENGLES3
-   CSOURCES += glsym/glsym_es2.c
-else
-   LIBS += $(GL_LIB) 
-   CSOURCES += glsym/glsym_gl.c
-endif
+LIBS += $(GL_LIB) 
+CSOURCES += glsym/glsym_gl.c
 
 OBJECTS := $(SOURCES:.cpp=.o) $(CSOURCES:.c=.o)
 
