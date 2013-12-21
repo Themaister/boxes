@@ -1,7 +1,7 @@
 #include "libretro.h"
 #include "util.hpp"
-#include <gl/global.hpp>
-#include <gl/framebuffer.hpp>
+#include "global.hpp"
+#include "framebuffer.hpp"
 #include <cstring>
 
 using namespace std;

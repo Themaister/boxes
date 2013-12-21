@@ -5,7 +5,7 @@
 #include <memory>
 #include <utility>
 #include <stdexcept>
-#include "../libretro.h"
+#include "../libretro/libretro.h"
 #include "../glsym/glsym.h"
 
 #include "util.hpp"

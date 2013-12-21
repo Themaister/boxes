@@ -1,5 +1,5 @@
 #include "shader.hpp"
-#include "../util.hpp"
+#include "util.hpp"
 #include <vector>
 
 using namespace std;

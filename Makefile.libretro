@@ -43,7 +43,7 @@ else
    CFLAGS += -O3 -g
 endif
 
-CXXFLAGS += -std=gnu++11 -Wall -pedantic $(fpic) -DHAVE_ZIP_DEFLATE
+CXXFLAGS += -std=gnu++11 -Wall -pedantic $(fpic) -DHAVE_ZIP_DEFLATE -Igl
 CFLAGS += -std=gnu99 -Wall -pedantic $(fpic) -DHAVE_ZIP_DEFLATE
 
 SOURCES := $(wildcard libretro/*.cpp) $(wildcard gl/*.cpp) app/$(TARGET_NAME).cpp

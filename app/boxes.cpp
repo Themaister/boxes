@@ -20,7 +20,7 @@ class Scene
    public:
       void init()
       {
-         int base = 16;
+         int base = 32;
          int scale = 4;
          for (int z = -base; z < base; z++)
             for (int y = -base; y < base; y++)
@@ -41,7 +41,10 @@ class Scene
 
          mesh.arrays.push_back({3, 4, GL_FLOAT, GL_FALSE, 0, 1, 1, 0});
          render_array[1].setup(mesh.arrays, { &vert, &culled_buffer[1] }, &elem);
-         render_array[2].setup(mesh.arrays, { &vert, &culled_buffer[2] }, &elem);
+
+         // Point sprites here.
+         VertexArray::Array point_array = { Shader::VertexLocation, 4, GL_FLOAT, GL_FALSE };
+         render_array[2].setup({point_array}, { &culled_buffer[2] }, nullptr);
 
          vert_fine.init(GL_ARRAY_BUFFER, mesh_fine[0].vbo, Buffer::None);
          elem_fine.init(GL_ELEMENT_ARRAY_BUFFER, mesh_fine[0].ibo, Buffer::None);
@@ -77,7 +80,9 @@ class Scene
 
          cull_shader.init_compute("app/shaders/boxcull.cs");
          render_shader.reserve_define("DIFFUSE_MAP", 1);
+         render_shader.reserve_define("LOD", 1);
          render_shader.init("app/shaders/boxrender.vs", "app/shaders/boxrender.fs");
+         render_shader_point.init("app/shaders/boxrender_point.vs", "app/shaders/boxrender_point.fs");
 
          for (auto& buffer : culled_buffer)
             buffer.init(GL_ARRAY_BUFFER, 8 * 1024 * 1024, Buffer::Copy);
@@ -97,7 +102,7 @@ class Scene
          IndirectCommand command[] = {
             { GLuint(indices_fine) }, // primCount is incremented by shaders.
             { GLuint(indices) },
-            { GLuint(indices) },
+            { 0, 1 }, // Draw point sprites here, so we're using glDrawArraysIndirect.
          };
          indirect.init(GL_DRAW_INDIRECT_BUFFER, sizeof(command), Buffer::Copy, command);
 
@@ -115,6 +120,7 @@ class Scene
             culled_buffer[i].unbind_indexed(GL_SHADER_STORAGE_BUFFER, i + 1);
 
          // GL must wait until previous shader has made updated data visible.
+         // We use updated shader storage buffer in next frame, so just barrier it here.
          glMemoryBarrier(GL_COMMAND_BARRIER_BIT | GL_VERTEX_ATTRIB_ARRAY_BARRIER_BIT | GL_SHADER_STORAGE_BARRIER_BIT);
 
          // Render instanced data.
@@ -130,26 +136,38 @@ class Scene
             render_shader.set_define("DIFFUSE_MAP", 0);
 
          indirect.bind();
-         for (unsigned i = 0; i < 3; i++)
+         for (unsigned i = 0; i < 2; i++)
          {
+            render_shader.set_define("LOD", i);
             render_array[i].bind();
             material[i].bind();
+
+            // glMultiDrawElementsIndirect is possible, but I had issues getting it to work.
+            // Only possible if all LOD levels use same shader though ...
             glDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT,
-                  reinterpret_cast<void*>(i * uintptr_t(sizeof(IndirectCommand)))); // Nearest
+                  reinterpret_cast<void*>(i * uintptr_t(sizeof(IndirectCommand))));
          }
+
+         // Draw farthest blocks as point sprites.
+         render_shader_point.use();
+         render_array[2].bind();
+         material[2].bind();
+         glDrawArraysIndirect(GL_POINTS, reinterpret_cast<void*>(2 * uintptr_t(sizeof(IndirectCommand))));
+
          indirect.unbind();
 
          if (use_diffuse)
             tex.unbind(0);
 
          Sampler::unbind(0, Sampler::TrilinearClamp);
-         render_shader.unbind();
+         render_shader_point.unbind();
          render_array[2].unbind();
          material[2].unbind();
       }
 
       Shader cull_shader;
       Shader render_shader;
+      Shader render_shader_point;
 
       Buffer vert, vert_fine;
       Buffer elem, elem_fine;
@@ -234,6 +252,9 @@ class BoxesApp : public LibretroGLApplication
          global_fragment.light_color = vec4(1.0);
          global_fragment.light_ambient = vec4(0.2);
 
+         global.resolution = vec4(width, height, 0, 0);
+         global_fragment.resolution = vec2(width, height);
+
          GlobalTransforms *buf;
          if (global_buffer.map(buf))
          {
@@ -270,7 +291,7 @@ class BoxesApp : public LibretroGLApplication
          player_look_dir = vec3(rotate_y * rotate_x * vec4(0, 0, -1, 1));
          vec3 right_walk_dir = vec3(rotate_y_right * vec4(0, 0, -1, 1));
 
-         vec3 mod_speed = buttons.r ? vec3(240.0f) : vec3(120.0f);
+         vec3 mod_speed = buttons.r ? vec3(500.0f) : vec3(250.0f);
          vec3 velocity = player_look_dir * vec3(analog.y * -0.25f) +
             right_walk_dir * vec3(analog.x * 0.25f);
 
@@ -333,7 +354,7 @@ class BoxesApp : public LibretroGLApplication
          global_fragment_buffer.init(GL_UNIFORM_BUFFER,
                sizeof(global_fragment), Buffer::WriteOnly, nullptr, Shader::GlobalFragmentData);
 
-         player_pos = vec3(0.0f);
+         player_pos = vec3(0, 0, 150);
          player_look_dir = vec3(0, 0, -1);
          player_view_deg_x = 0.0f;
          player_view_deg_y = 0.0f;
@@ -375,6 +396,7 @@ class BoxesApp : public LibretroGLApplication
          mat4 inv_proj;
          vec4 camera_pos;
          vec4 camera_vel;
+         vec4 resolution; // Padded.
          Frustum frustum;
          float delta_time;
       };
@@ -386,6 +408,7 @@ class BoxesApp : public LibretroGLApplication
          vec4 light_pos;
          vec4 light_color;
          vec4 light_ambient;
+         vec2 resolution;
       };
 
       GlobalTransforms global;

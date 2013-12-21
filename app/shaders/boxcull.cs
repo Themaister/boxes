@@ -12,13 +12,14 @@ layout(binding = GLOBAL_VERTEX_DATA) uniform GlobalVertexData
    mat4 inv_proj;
    vec4 camera_pos;
    vec4 camera_vel;
+   vec4 resolution;
    vec4 frustum[6];
    float delta_time;
 } global_vert;
 
 layout(binding = 0, offset = 4) uniform atomic_uint lod0_cnt; // Outputs to instance variable.
 layout(binding = 0, offset = 24) uniform atomic_uint lod1_cnt;
-layout(binding = 0, offset = 44) uniform atomic_uint lod2_cnt;
+layout(binding = 0, offset = 40) uniform atomic_uint lod2_cnt; // not 44 since we're using point sprites here with glDrawArraysIndirect.
 
 struct Point
 {
@@ -85,12 +86,12 @@ void main()
       if (dot(pos, global_vert.frustum[i]) < -point.w) // Culled
          return;
 
-   if (depth > 500.0) // LOD2
+   if (depth > 250.0) // LOD2
    {
       uint counter = atomicCounterIncrement(lod2_cnt);
       culled2.pos[counter] = point;
    }
-   else if (depth > 100.0) // LOD1
+   else if (depth > 50.0) // LOD1
    {
       uint counter = atomicCounterIncrement(lod1_cnt);
       culled1.pos[counter] = point;
